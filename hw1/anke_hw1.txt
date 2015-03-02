@@ -1,0 +1,419 @@
+ 1.1 How many packets does the trace contain?
+ Answer: 32664. I used: 
+            tcpdump -n -r hw1.pcap | wc -l
+ 
+ 1.2 How many ARP and how many UDP packets?
+ Answer: there are 11304 ARP packets. I used:
+            tcpdump -n arp -r hw1.pcap | wc -l
+         there are 18382 UDP packets. I used:
+            tcpdump -n udp -r hw1.pcap | wc -l
+ 
+ 1.3 How many packets were exchanged between 192.168.0.200 and 87.98.246.8?
+ Answer: 60. I used:
+            tcpdump -n "(ip src 192.168.0.200 && ip dst 87.98.246.8) || (ip src 87.98.246.8 && ip dst 192.168.0.200)" -r hw1.pcap | wc -l
+ 
+ 1.4 Print the unique source IP addresses found in the trace. 
+ Answer: I used command:
+            tcpdump -n ip -r hw1.pcap | cut -d' ' -f3 | cut -d'.' -f1-4 | sort | uniq
+         See the result below:
+ 
+            0.0.0.0
+            122.154.101.54
+            1.234.31.20
+            130.75.16.5
+            159.148.96.184
+            169.254.56.55
+            192.168.0.1
+            192.168.0.10
+            192.168.0.11
+            192.168.0.12
+            192.168.0.2
+            192.168.0.200
+            192.168.0.3
+            192.168.0.5
+            192.168.0.6
+            192.168.0.7
+            194.168.4.100
+            216.137.63.121
+            216.137.63.137
+            46.51.197.88
+            46.51.197.89
+            62.252.170.81
+            62.252.170.91
+            87.230.23.162
+            87.98.246.8
+            91.189.88.33
+            91.189.89.88
+            91.189.90.40
+            91.189.90.41
+            91.189.91.14
+            91.189.91.15
+            91.189.92.190
+            92.240.68.152
+ 
+ 1.5 Print the unique destination IP addresses found in the trace. 
+ Answer: I used command:
+            tcpdump -n ip -r hw1.pcap | cut -d' ' -f5 | cut -d':' -f1 | cut -d'.' -f1-4 | sort | uniq
+         See the result below:
+ 
+            122.154.101.54
+            1.234.31.20
+            130.75.16.5
+            159.148.96.184
+            169.254.255.255
+            192.168.0.12
+            192.168.0.200
+            192.168.0.255
+            194.168.4.100
+            216.137.63.121
+            216.137.63.137
+            224.0.0.22
+            224.0.0.251
+            224.0.0.252
+            224.0.0.253
+            239.255.255.250
+            255.255.255.255
+            46.51.197.88
+            46.51.197.89
+            62.252.170.81
+            62.252.170.91
+            87.230.23.162
+            87.98.246.8
+            91.189.88.33
+            91.189.89.88
+            91.189.90.40
+            91.189.90.41
+            91.189.91.14
+            91.189.91.15
+            91.189.92.190
+            92.240.68.152
+ 
+ 1.6 What are the top-5 TCP and top-5 UDP destination ports?
+ Answer: By using this command:
+            tcpdump -n tcp -r hw1.pcap | cut -d' ' -f5 | cut -d':' -f1 | cut -d'.' -f5 | sort | uniq -c | sort -n -r | head -10
+        See the result below:
+
+            727 80
+            697 54634
+            346 49836
+             61 47110
+             36 40341
+             23 49821
+             19 59034
+             19 59019
+             12 42990
+              8 9100
+
+        We could see that the top-5 TCP destination ports are: 80, 54634, 49836, 47110, 40341
+        
+        By using this command:
+            tcpdump -n udp -r hw1.pcap | cut -d' ' -f5 | cut -d':' -f1 | cut -d'.' -f5 | sort | uniq -c | sort -n -r | head -10
+        See the result below:
+        
+              13178 1900
+               1925 137
+               1516 5355
+                840 5353
+                399 138
+                252 67
+                 97 3702
+                 48 3544
+                 38 53
+                 22 161
+        
+        We could see that the top-5 UDP destination ports are: 1900, 137, 5355, 5353, 138
+ 
+ 1.7 How many TCP packets have the SYN flag set?
+ Answer: 75. I used command:
+            tcpdump -n 'tcp[tcpflags] & tcp-syn != 0' -r hw1.pcap | wc -l
+ 
+ 1.8 Towards which ports are TCP connection attempts made?
+ Answer: I used command:
+            tcpdump -n 'tcp[tcpflags] & tcp-syn != 0' -r hw1.pcap | cut -d' ' -f5 | cut -d'.' -f5 | cut -d':' -f1 | sort | uniq
+         See the result below:
+ 
+            17260
+            19957
+            22272
+            31617
+            36350
+            36889
+            38720
+            39437
+            40341
+            40630
+            42035
+            42230
+            42497
+            42503
+            42533
+            42534
+            42990
+            43029
+            443
+            45552
+            465
+            47110
+            48734
+            48952
+            48955
+            49291
+            49294
+            49821
+            49836
+            52079
+            52724
+            54634
+            55528
+            55672
+            58460
+            58724
+            59019
+            59034
+            80
+            9100
+            9485
+ 
+ 1.9 How many HTTP GET requests are there? Print the URLs of PHP script requests
+ Answer: 94. I used command:
+            tcpdump -n '(tcp port http) && (tcp[32:4] = 0x47455420)' -r hw1.pcap | wc -l
+         Attention: if I used "http.request.method == "GET"" in Wireshark, the number of packets was 111. I don't know why.
+         I used this command to print GET URLs:
+            tcpdump -n -A '(tcp port http) && (tcp[32:4] = 0x47455420)' -r hw1.pcap | grep GET | rev | cut -d' ' -f2 | rev | grep -v GET
+        
+        See the result below:
+        
+            http://pic.leech.it/i/f166c/479246b0asttas.jpg
+            /i/f166c/479246b0asttas.jpg
+            http://ecx.images-amazon.com/images/I/41oZ1XsiOAL._SL500_AA300_.jpg
+            /images/I/41oZ1XsiOAL.
+            http://images4.byinter.net/DSC442566.gif
+            /DSC442566.gif
+            http://www.nature.com/news/2009/090527/images/459492a-i1.0.jpg
+            /ubuntu/dists/oneiric-security/InRelease
+            /ubuntu/dists/oneiric/InRelease
+            /ubuntu/dists/oneiric-security/Release.gpg
+            /ubuntu/dists/oneiric/Release.gpg
+            /ubuntu/dists/oneiric-security/Release
+            /ubuntu/dists/oneiric/Release
+            /ubuntu/dists/oneiric/InRelease
+            /ubuntu/dists/oneiric-updates/InRelease
+            /ubuntu/dists/oneiric-backports/InRelease
+            /ubuntu/dists/oneiric-security/main/source/Sources.bz2
+            /ubuntu/dists/oneiric/main/source/Sources.bz2
+            /ubuntu/dists/oneiric-security/restricted/source/Sources.bz2
+            /ubuntu/dists/oneiric-security/universe/source/Sources.bz2
+            /ubuntu/dists/oneiric-security/multiverse/source/Sources.bz2
+            /ubuntu/dists/oneiric-security/main/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-security/restricted/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-security/universe/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric/main/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric/main/i18n/Index
+            /ubuntu/dists/oneiric/Release.gpg
+            /ubuntu/dists/oneiric-updates/Release.gpg
+            /ubuntu/dists/oneiric/main/i18n/Translation-en_US.bz2
+            /ubuntu/dists/oneiric-security/universe/i18n/Index
+            /ubuntu/dists/oneiric-security/main/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric/main/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric-security/restricted/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric-security/universe/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric/main/i18n/Translation-en_US.xz
+            /ubuntu/dists/oneiric/main/i18n/Translation-en.xz
+            /ubuntu/dists/oneiric-backports/Release.gpg
+            /ubuntu/dists/oneiric/Release
+            /ubuntu/dists/oneiric/main/i18n/Translation-en_US.lzma
+            /ubuntu/dists/oneiric/main/i18n/Translation-en.lzma
+            /ubuntu/dists/oneiric/main/i18n/Translation-en_US.gz
+            /ubuntu/dists/oneiric-updates/Release
+            /ubuntu/dists/oneiric-backports/Release
+            /ubuntu/dists/oneiric/main/i18n/Translation-en.gz
+            /ubuntu/dists/oneiric/main/i18n/Translation-en_US
+            /ubuntu/dists/oneiric/main/i18n/Translation-en
+            /ubuntu/dists/oneiric/main/source/Sources.bz2
+            /ubuntu/dists/oneiric/restricted/source/Sources.bz2
+            /ubuntu/dists/oneiric/universe/source/Sources.bz2
+            /ubuntu/dists/oneiric/multiverse/source/Sources.bz2
+            /ubuntu/dists/oneiric/main/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric/restricted/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric/restricted/i18n/Index
+            /ubuntu/dists/oneiric/universe/i18n/Index
+            /ubuntu/dists/oneiric-updates/main/source/Sources.bz2
+            /ubuntu/dists/oneiric-updates/restricted/source/Sources.bz2
+            /ubuntu/dists/oneiric-updates/universe/source/Sources.bz2
+            /ubuntu/dists/oneiric-updates/multiverse/source/Sources.bz2
+            /ubuntu/dists/oneiric-updates/universe/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-updates/multiverse/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-updates/main/i18n/Index
+            /ubuntu/dists/oneiric-updates/multiverse/i18n/Index
+            /ubuntu/dists/oneiric-updates/restricted/i18n/Index
+            /ubuntu/dists/oneiric-updates/universe/i18n/Index
+            /ubuntu/dists/oneiric-backports/restricted/source/Sources.bz2
+            /ubuntu/dists/oneiric-backports/universe/source/Sources.bz2
+            /ubuntu/dists/oneiric-backports/multiverse/source/Sources.bz2
+            /ubuntu/dists/oneiric-backports/main/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-backports/restricted/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-backports/universe/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-backports/multiverse/i18n/Index
+            /ubuntu/dists/oneiric-backports/restricted/i18n/Index
+            /ubuntu/dists/oneiric-backports/universe/i18n/Index
+            /ubuntu/dists/oneiric/main/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric/multiverse/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric/restricted/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric-updates/main/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric-updates/multiverse/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric-updates/restricted/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric-updates/universe/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric-backports/main/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric-backports/multiverse/i18n/Translation-en.bz2
+            /favicon.ico
+            /11.10/Google/?sourceid=hp
+            /news/2009/090527/images/459492a-i1.0.jpg
+            /11.10/Google/?sourceid=hp
+            /images/I/41oZ1XsiOAL
+            /favicon.ico
+            /11.10/Google/?sourceid=hp
+            /DSC442566.gif
+            /favicon.ico
+            /favicon.ico
+            /11.10/Google/?sourceid=hp
+            /ubuntu/dists/oneiric/InRelease
+            /ubuntu/dists/oneiric-security/InRelease
+            /ubuntu/dists/oneiric/Release.gpg
+            /ubuntu/dists/oneiric-security/Release.gpg
+            /ubuntu/dists/oneiric/Release
+            /ubuntu/dists/oneiric-security/Release
+            /ubuntu/dists/oneiric/InRelease
+            /ubuntu/dists/oneiric-updates/InRelease
+            /ubuntu/dists/oneiric-backports/InRelease
+            /ubuntu/dists/oneiric/main/source/Sources.bz2
+            /ubuntu/dists/oneiric/main/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric/main/i18n/Index
+            /ubuntu/dists/oneiric-security/main/source/Sources.bz2
+            /ubuntu/dists/oneiric/main/i18n/Translation-en_US.bz2
+            /ubuntu/dists/oneiric/Release.gpg
+            /ubuntu/dists/oneiric-updates/Release.gpg
+            /ubuntu/dists/oneiric/main/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric/main/i18n/Translation-en_US.xz
+            /ubuntu/dists/oneiric-security/restricted/source/Sources.bz2
+            /ubuntu/dists/oneiric-security/universe/source/Sources.bz2
+            /ubuntu/dists/oneiric-security/multiverse/source/Sources.bz2
+            /ubuntu/dists/oneiric-security/main/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-security/restricted/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-security/universe/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric/main/i18n/Translation-en.xz
+            /ubuntu/dists/oneiric-backports/Release.gpg
+            /ubuntu/dists/oneiric/main/i18n/Translation-en_US.lzma
+            /ubuntu/dists/oneiric-security/universe/i18n/Index
+            /ubuntu/dists/oneiric/main/i18n/Translation-en.lzma
+            /ubuntu/dists/oneiric/main/i18n/Translation-en_US.gz
+            /ubuntu/dists/oneiric/Release
+            /ubuntu/dists/oneiric/main/i18n/Translation-en.gz
+            /ubuntu/dists/oneiric/main/i18n/Translation-en_US
+            /ubuntu/dists/oneiric-security/main/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric/main/i18n/Translation-en
+            /ubuntu/dists/oneiric-updates/Release
+            /ubuntu/dists/oneiric-security/universe/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric-backports/Release
+            /ubuntu/dists/oneiric/main/source/Sources.bz2
+            /ubuntu/dists/oneiric/restricted/source/Sources.bz2
+            /ubuntu/dists/oneiric/universe/source/Sources.bz2
+            /ubuntu/dists/oneiric/multiverse/source/Sources.bz2
+            /ubuntu/dists/oneiric/main/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric/restricted/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric/universe/i18n/Index
+            /ubuntu/dists/oneiric-updates/main/source/Sources.bz2
+            /ubuntu/dists/oneiric-updates/restricted/source/Sources.bz2
+            /ubuntu/dists/oneiric-updates/universe/source/Sources.bz2
+            /ubuntu/dists/oneiric-updates/multiverse/source/Sources.bz2
+            /ubuntu/dists/oneiric-updates/main/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-updates/universe/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-updates/multiverse/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-updates/main/i18n/Index
+            /ubuntu/dists/oneiric-updates/multiverse/i18n/Index
+            /ubuntu/dists/oneiric-updates/restricted/i18n/Index
+            /ubuntu/dists/oneiric-updates/universe/i18n/Index
+            /ubuntu/dists/oneiric-backports/main/source/Sources.bz2
+            /ubuntu/dists/oneiric-backports/restricted/source/Sources.bz2
+            /ubuntu/dists/oneiric-backports/universe/source/Sources.bz2
+            /ubuntu/dists/oneiric-backports/multiverse/source/Sources.bz2
+            /ubuntu/dists/oneiric-backports/main/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-backports/restricted/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-backports/universe/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-backports/multiverse/binary-i386/Packages.bz2
+            /ubuntu/dists/oneiric-backports/main/i18n/Index
+            /ubuntu/dists/oneiric-backports/multiverse/i18n/Index
+            /ubuntu/dists/oneiric/restricted/i18n/Translation-en.bz2
+            /ubuntu/dists/oneiric/universe/i18n/Translation-en.bz2
+            /w00tw00t.at.blackhats.romanian.anti-sec:)
+            /phpMyAdmin/scripts/setup.php
+            /phpmyadmin/scripts/setup.php
+            /pma/scripts/setup.php
+            /myadmin/scripts/setup.php
+            /MyAdmin/scripts/setup.php
+
+1.10 When (date and time) was the first and last packet of the trace sent?
+Answer: The first packet was sent at 2013-01-12 11:37:42.871346.
+        I used command:
+            tcpdump -n -tttt -r hw1.pcap | head -1
+            
+        The last packet was sent at 2013-01-14 13:27:03.691498.
+        I used command:
+            tcpdump -n -tttt -r hw1.pcap | tail -1
+
+1.11 What is the brand of the device that sent most packets? What is its IP?
+Answer: I used this command to see what source mac address appeared most often:
+            tcpdump -n -e -r hw1.pcap | cut -d' ' -f2 | sort | uniq -c
+        See the result below:
+
+            reading from file hw1.pcap, link-type EN10MB (Ethernet)
+                269 00:00:48:46:6c:97
+                862 00:0c:29:e9:94:8e
+               4982 00:16:44:b5:86:2e
+                101 30:17:c8:3e:4e:82
+                816 34:c0:59:9d:1c:79
+                940 3c:d0:f8:4e:4b:a1
+               4587 44:6d:57:f6:7e:00
+                 23 c4:3d:c7:17:6f:98
+                 69 c4:3d:c7:17:6f:99
+                  3 c4:3d:c7:17:6f:9a
+              19743 c4:3d:c7:17:6f:9b
+                 11 e0:cb:1d:16:13:b2
+                128 e8:8d:28:6d:c8:f5
+                130 fc:25:3f:8e:4c:9a
+        
+        We could see that c4:3d:c7:17:6f:9b appeared most often. Then lookup this address at http://www.coffer.com/mac_find/
+        We could know that the brand of this device is NETGEAR. Using this command:
+            tcpdump -n ether src c4:3d:c7:17:6f:9b -r hw1.pcap | head
+        We could know that its IP is 192.168.0.1
+
+1.12 Report the distribution of ethernet packet sizes in the trace.
+Answer: I used following python script extract_length.py to extract packet length:
+
+            import pcapy
+
+            reader = pcapy.open_offline("hw1.pcap")
+
+            while True:
+                try:
+                    (header, payload) = reader.next()
+                    print header.getlen()
+                except pcapy.PcapError:
+                    break
+        
+        Then I used a python library data_hacks to display distribution information in terminal:
+            python extract_length.py | histogram.py
+        See the result below:
+
+            # NumSamples = 32664; Min = 42.00; Max = 1514.00
+            # Mean = 248.474008; Variance = 78422.927319; SD = 280.040939; Median 92.000000
+            # each ∎ represents a count of 233
+               42.0000 -   189.2000 [ 17495]: ∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎
+              189.2000 -   336.4000 [  3599]: ∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎
+              336.4000 -   483.6000 [  9443]: ∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎∎
+              483.6000 -   630.8000 [   972]: ∎∎∎∎
+              630.8000 -   778.0000 [    47]:
+              778.0000 -   925.2000 [    13]:
+              925.2000 -  1072.4000 [    53]:
+             1072.4000 -  1219.6000 [     7]:
+             1219.6000 -  1366.8000 [     0]:
+             1366.8000 -  1514.0000 [  1035]: ∎∎∎∎
