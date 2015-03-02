@@ -1,7 +1,12 @@
-# Adrian's first Makefile for CSE 508 project 2 :)
+# Adrian's first Makefile for CSE 508 project 2
 
-all: mydump
-	gcc -I/usr/include/pcap mydump.c -lpcap -o mydump
+all: clean mydump refdump
+
+mydump: mydump.c
+	gcc mydump.c -lpcap -o mydump
+
+refdump: refdump.c
+	gcc refdump.c -lpcap -o refdump
 
 clean:
-	rm -f *~ *.o *.out mydump
+	rm -f *~ *.o *.out mydump refdump
