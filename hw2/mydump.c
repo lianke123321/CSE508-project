@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <time.h>
 
 #define ETHER_ADDR_LEN 6
 #define SIZE_ETHERNET 14
@@ -232,8 +233,14 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,\
 	int size_icmp = 8; // fixed udp header length
 	int size_payload;
 	
-	// print out time stamp
-	printf("%d.%d ", (int)header->ts.tv_sec, (int)header->ts.tv_usec);
+	// print out time stamp. convert elapse time to date,
+	// then remove new line symbol at the end
+	time_t raw_time = (time_t)header->ts.tv_sec;
+	char *ptr = ctime(&raw_time);
+	char timebuf[126];
+	strcpy(timebuf, ptr);
+	timebuf[strlen(timebuf)-1] = 0;
+	printf("%s ", timebuf);
 	/*int i = sprintf(tmp, "%d.%d ", (int)header->ts.tv_sec, (int)header->ts.tv_usec);
 	strcat(info, tmp);
 	printf("%s", info);*/
