@@ -167,30 +167,9 @@ void print_payload(const u_char *payload, int len) {
 	return;
 }
 
-// call back function for pcap_loop to display packet info
-void got_packet(u_char *args, const struct pcap_pkthdr *header,\
+// display info for each packet
+void handle_packet(boolean http, char *string, const struct pcap_pkthdr *header,\
 	const u_char *packet) {
-	
-	// parse args and initialize http and string
-	boolean http = false;
-	char *string = NULL;
-	if (args != NULL) {
-		char g = *args;
-		if (g == 'g') {
-			http = true;
-			if (strlen(args+1) > 0) {
-				string = args + 1;
-				//printf("There is pattern string!\n");
-			}
-			//printf("New string: %s\n", string);
-		} else {
-			string = args;
-			//printf("New string: %s\n", string);
-		}
-	}
-	
-	char info[2000];
-	char tmp[100];
 	/* declare pointers to packet headers */
 	const struct sniff_ethernet *ethernet;
 	const struct sniff_ip *ip;
@@ -211,49 +190,33 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,\
 	char timebuf[126];
 	strcpy(timebuf, ptr);
 	timebuf[strlen(timebuf)-1] = 0;
-	//printf("%s ", timebuf);
-	sprintf(tmp, "%s ", timebuf);
-	strcpy(info, tmp);
-	memset(tmp, 0, strlen(tmp));
+	printf("%s ", timebuf);
 	
 	// extract ethernet header
 	ethernet = (struct sniff_ethernet*)(packet);
 	
 	if (ntohs(ethernet->ether_type) == ETHERTYPE_IPV4) {
-		//printf("IPv4 ");
-		strcat(info, "IPv4 ");
+		printf("IPv4 ");
 		// extract ip header
 		ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
 		size_ip = IP_HL(ip)*4;
 		if (size_ip < 20) {
-			printf("%s", info);
 			printf("* Invalid IP header length: %u bytes\n", size_ip);
 			return;
 		}
 		
 		// for tcp packet
 		if (ip->ip_p == IPPROTO_TCP) {
-			//printf("TCP ");
-			strcat(info, "TCP ");
+			printf("TCP ");
 			tcp = (struct sniff_tcp*)(packet + SIZE_ETHERNET + size_ip);
 			size_tcp = TH_OFF(tcp)*4;
 			if (size_tcp < 20) {
-				printf("%s", info);
 				printf("* Invalid TCP header length: %u bytes\n", size_tcp);
 				return;
 			}
-			//printf("%s.%d -> ", inet_ntoa(ip->ip_src), ntohs(tcp->th_sport));
-			sprintf(tmp, "%s.%d -> ", inet_ntoa(ip->ip_src), ntohs(tcp->th_sport));
-			strcpy(info, tmp);
-			memset(tmp, 0, strlen(tmp));
-			//printf("%s.%d ", inet_ntoa(ip->ip_dst), ntohs(tcp->th_dport));
-			sprintf(tmp, "%s.%d ", inet_ntoa(ip->ip_dst), ntohs(tcp->th_dport));
-			strcpy(info, tmp);
-			memset(tmp, 0, strlen(tmp));
-			//printf("len %d ", ntohs(ip->ip_len));
-			sprintf(tmp, "len %d ", ntohs(ip->ip_len));
-			strcpy(info, tmp);
-			memset(tmp, 0, strlen(tmp));
+			printf("%s.%d -> ", inet_ntoa(ip->ip_src), ntohs(tcp->th_sport));
+			printf("%s.%d ", inet_ntoa(ip->ip_dst), ntohs(tcp->th_dport));
+			printf("len %d ", ntohs(ip->ip_len));
 			
 			// extract payload
 			payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
@@ -261,10 +224,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,\
 			
 			// print payload
 			if (size_payload > 0) {
-				//printf("Payload (%d bytes):\n", size_payload);
-				sprintf(tmp, "Payload (%d bytes):\n", size_payload);
-				strcpy(info, tmp);
-				memset(tmp, 0, strlen(tmp));
+				printf("Payload (%d bytes):\n", size_payload);
 				
 				if (string != NULL) {
 					if (strstr(payload, string) == NULL)
@@ -276,13 +236,11 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,\
 					strcpy(tmp, payload);
 					char *ptr = strtok(tmp, " ");
 					ptr = strtok(NULL, " ");
-					printf("%s", info);
 					printf("%s\n", ptr);
 				} else {
 					print_payload(payload, size_payload);
 				}
 			}
-			printf("%s", info);
 			printf("\n");
 		} else if (ip->ip_p == IPPROTO_UDP) {
 			printf("UDP ");
@@ -336,25 +294,144 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,\
 			printf("\n");
 		}
 	} else if (ntohs(ethernet->ether_type) == ETHERTYPE_ARP) {
-		//printf("ARP\n");
-		strcat(info, "ARP\n");
+		printf("ARP\n");
 	} else {
-		//printf("OTHER\n");
-		strcat(info, "OTHER\n");
+		printf("OTHER\n");
 	}
 	
 	return;
 }
 
-/*void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
+// callback function for pcap_loop
+void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
+	// parse args and initialize http and string
+	//printf("got packet!\n");
+	boolean http = false;
+	char *string = NULL;
 	if (args != NULL) {
+		char g = *args;
+		if (g == 'g') {
+			http = true;
+			if (strlen(args+1) > 0) {
+				string = args + 1;
+				//printf("There is pattern string!\n");
+			}
+			//printf("New string: %s\n", string);
+		} else {
+			string = args;
+			//printf("New string: %s\n", string);
+		}
+	}
+	
+	if (string == NULL)
+		handle_packet(http, string, header, packet);
+	else {
+		/* declare pointers to packet headers */
+		const struct sniff_ethernet *ethernet;
+		const struct sniff_ip *ip;
+		const struct sniff_tcp *tcp;
+		const struct sniff_udp *udp;
+		const char *payload;
+		
+		int size_ip;
+		int size_tcp;
+		int size_udp = 8; // fixed udp header length
+		int size_icmp = 8; // fixed udp header length
+		int size_payload;
+		
+		// extract ethernet header
 		ethernet = (struct sniff_ethernet*)(packet);
 		
-		if (strstr((char*)args, (char*)packet) != NULL)
-			handle_packet(header, packet);
-	} else
-		handle_packet(header, packet);
-}*/
+		if (ntohs(ethernet->ether_type) == ETHERTYPE_IPV4) {
+			// extract ip header
+			ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
+			size_ip = IP_HL(ip)*4;
+			if (size_ip < 20) {
+				return;
+			}
+			
+			// for tcp packet
+			if (ip->ip_p == IPPROTO_TCP) {
+				tcp = (struct sniff_tcp*)(packet + SIZE_ETHERNET + size_ip);
+				size_tcp = TH_OFF(tcp)*4;
+				if (size_tcp < 20) {
+					return;
+				}
+				
+				// extract payload
+				payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
+				size_payload = ntohs(ip->ip_len) - (size_ip + size_tcp);
+				
+				// print payload
+				if (size_payload > 0) {
+					char str_payload[size_payload];
+					strncpy(str_payload, payload, size_payload);
+					
+					if (strstr(str_payload, string) == NULL)
+						return;
+					else
+						handle_packet(http, string, header, packet);
+				} else {
+					return;
+				}
+			} else if (ip->ip_p == IPPROTO_UDP) {
+				udp = (struct sniff_udp*)(packet + SIZE_ETHERNET + size_ip);
+				
+				// extract payload
+				payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_udp);
+				size_payload = ntohs(ip->ip_len) - (size_ip + size_udp);
+				
+				// print payload
+				if (size_payload > 0) {
+					char str_payload[size_payload];
+					strncpy(str_payload, payload, size_payload);
+					
+					if (strstr(str_payload, string) == NULL)
+						return;
+					else
+						handle_packet(http, string, header, packet);
+				} else {
+					return;
+				}
+			} else if (ip->ip_p == IPPROTO_ICMP) {
+				// extract payload
+				payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_icmp);
+				size_payload = ntohs(ip->ip_len) - (size_ip + size_icmp);
+				
+				// print payload
+				if (size_payload > 0) {
+					char str_payload[size_payload];
+					strncpy(str_payload, payload, size_payload);
+					
+					if (strstr(str_payload, string) == NULL)
+						return;
+					else
+						handle_packet(http, string, header, packet);
+				} else {
+					return;
+				}
+			} else {
+				// extract payload
+				payload = (u_char *)(packet + SIZE_ETHERNET + size_ip);
+				size_payload = ntohs(ip->ip_len) - (size_ip);
+				
+				// print payload
+				if (size_payload > 0)
+				{
+					char str_payload[size_payload];
+					strncpy(str_payload, payload, size_payload);
+					
+					if (strstr(str_payload, string) == NULL)
+						return;
+					else
+						handle_packet(http, string, header, packet);
+				} else {
+					return;
+				}
+			}
+		}
+	}
+}
 
 int main(int argc, char *argv[]) {
 	int opt = 0;

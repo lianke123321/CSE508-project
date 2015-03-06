@@ -1,0 +1,99 @@
+My program implemented the required functions using libpcap. But I didn't print out extra information.
+
+My program only supports following packet type:
+	1. IPv4: TCP, UDP, ICMP
+	2. ARP
+All other kinds of packets will be printed out as "OTHER"
+
+I used the pcap file from hw1 and eth0 to test my program.
+
+In my code, main() function will parse the arguments and call pcap_loop. My call back function is got_packet(), which will search the payload if a string pattern is given, and only call handle_packet() when string exists in packet payload. handle_packet() is used to print out information for each packet. print_hex_ascii_line() is used by print_payload() to print out payload.
+
+I searched tons of websites for this homework and these links are especially helpful: 
+	1. http://www.tcpdump.org/pcap.html
+	2. http://www.tcpdump.org/manpages/pcap-filter.7.html
+
+Below are some results of running mydump (I can't paste all of them since some results are very long):
+1. $ sudo ./mydump -i eth0
+
+	Initializing mydump using following parameters:
+					interface: eth0
+					file: (null)
+					string pattern: (null)
+					http sniffer mode: false
+					expression: (null)
+
+
+	Thu Mar  5 21:13:27 2015 ARP
+	Thu Mar  5 21:13:27 2015 IPv4 TCP 10.0.1.16.22 -> 10.0.1.6.56557 len 120 Payload (80 bytes):
+	00000   5a 76 84 db 48 a5 ff 1a  5f f6 75 47 29 1f 3f 02    Zv..H..._.uG).?.
+	00016   b0 04 fc c5 68 d4 47 6a  69 9a d2 d5 d4 fa 4c 01    ....h.Gji.....L.
+	00032   7b 08 27 b6 77 a3 86 03  2e 6f 00 91 cc f0 ab b3    {.'.w....o......
+	00048   b4 8a b9 78 89 93 d3 09  f0 56 f5 c8 fe 93 4f 6b    ...x.....V....Ok
+	00064   e5 e2 07 4c 02 f6 23 fc  7e 4c 2a 7e b4 82 a5 f5    ...L..#.~L*~....
+
+	Thu Mar  5 21:13:27 2015 IPv4 TCP 10.0.1.16.22 -> 10.0.1.6.56557 len 120 Payload (80 bytes):
+	00000   5a 76 84 db 48 a5 ff 1a  5f f6 75 47 29 1f 3f 02    Zv..H..._.uG).?.
+	00016   b0 04 fc c5 68 d4 47 6a  69 9a d2 d5 d4 fa 4c 01    ....h.Gji.....L.
+	00032   7b 08 27 b6 77 a3 86 03  2e 6f 00 91 cc f0 ab b3    {.'.w....o......
+	00048   b4 8a b9 78 89 93 d3 09  f0 56 f5 c8 fe 93 4f 6b    ...x.....V....Ok
+	00064   e5 e2 07 4c 02 f6 23 fc  7e 4c 2a 7e b4 82 a5 f5    ...L..#.~L*~....
+
+2. $ ./mydump -r hw1.pcap "icmp"
+
+	Initializing mydump using following parameters:
+					interface: (null)
+					file: hw1.pcap
+					string pattern: (null)
+					http sniffer mode: false
+					expression: icmp
+
+
+	Mon Jan 14 12:42:31 2013 IPv4 ICMP 1.234.31.20 -> 192.168.0.200 len 76 Payload (48 bytes):
+	00000   45 00 00 30 00 00 40 00  2e 06 6a 5a c0 a8 00 c8    E..0..@...jZ....
+	00016   01 ea 1f 14 00 50 7b 81  bd cd 09 c6 3a 35 22 b0    .....P{.....:5".
+	00032   70 12 39 08 11 ab 00 00  02 04 05 b4 01 01 04 02    p.9.............
+
+3. $ ./mydump -r hw1.pcap -g
+
+	Initializing mydump using following parameters:
+					interface: (null)
+					file: hw1.pcap
+					string pattern: (null)
+					http sniffer mode: true
+					expression: (null)
+
+
+	Sat Jan 12 22:30:48 2013 IPv4 TCP 92.240.68.152.9485 -> 192.168.0.200.80 len 163 Payload (111 bytes):
+	http://pic.leech.it/i/f166c/479246b0asttas.jpg
+
+	Sat Jan 12 22:30:49 2013 IPv4 TCP 192.168.0.200.40341 -> 87.98.246.8.80 len 215 Payload (163 bytes):
+	/i/f166c/479246b0asttas.jpg
+
+	Sat Jan 12 22:31:19 2013 IPv4 TCP 92.240.68.152.17260 -> 192.168.0.200.80 len 193 Payload (141 bytes):
+	http://ecx.images-amazon.com/images/I/41oZ1XsiOAL._SL500_AA300_.jpg
+
+	Sat Jan 12 22:31:19 2013 IPv4 TCP 192.168.0.200.40630 -> 216.137.63.121.80 len 219 Payload (167 bytes):
+	/images/I/41oZ1XsiOAL.
+
+	Sat Jan 12 22:31:50 2013 IPv4 TCP 92.240.68.152.19957 -> 192.168.0.200.80 len 164 Payload (112 bytes):
+	http://images4.byinter.net/DSC442566.gif
+
+	Sat Jan 12 22:31:50 2013 IPv4 TCP 192.168.0.200.55528 -> 159.148.96.184.80 len 209 Payload (157 bytes):
+	/DSC442566.gif
+
+4. $ ./mydump -r hw1.pcap -g -s "MyAdmin"
+
+	Initializing mydump using following parameters:
+					interface: (null)
+					file: hw1.pcap
+					string pattern: MyAdmin
+					http sniffer mode: true
+					expression: (null)
+
+
+	Mon Jan 14 12:47:54 2013 IPv4 TCP 1.234.31.20.42230 -> 192.168.0.200.80 len 222 Payload (170 bytes):
+	/phpMyAdmin/scripts/setup.php
+
+	Mon Jan 14 12:48:18 2013 IPv4 TCP 1.234.31.20.55672 -> 192.168.0.200.80 len 219 Payload (167 bytes):
+	/MyAdmin/scripts/setup.php
