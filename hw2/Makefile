@@ -3,10 +3,10 @@
 all: clean mydump refdump
 
 mydump: mydump.c
-	gcc mydump.c -lpcap -o mydump
+	gcc -g mydump.c -lpcap -o mydump
 
 refdump: refdump.c
-	gcc refdump.c -lpcap -o refdump
+	gcc -g refdump.c -lpcap -o refdump
 
 clean:
 	rm -f *~ *.o *.out mydump refdump

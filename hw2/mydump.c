@@ -78,54 +78,6 @@ struct sniff_tcp
 	u_short th_urp;				 /* urgent pointer */
 };
 
-char** str_split(char* a_str, const char a_delim)
-{
-    char** result    = 0;
-    size_t count     = 0;
-    char* tmp        = a_str;
-    char* last_comma = 0;
-    char delim[2];
-    delim[0] = a_delim;
-    delim[1] = 0;
-
-    /* Count how many elements will be extracted. */
-    while (*tmp)
-    {
-        if (a_delim == *tmp)
-        {
-            count++;
-            last_comma = tmp;
-        }
-        tmp++;
-    }
-
-    /* Add space for trailing token. */
-    count += last_comma < (a_str + strlen(a_str) - 1);
-
-    /* Add space for terminating null string so caller
-       knows where the list of returned strings ends. */
-    count++;
-
-    result = malloc(sizeof(char*) * count);
-
-    if (result)
-    {
-        size_t idx  = 0;
-        char* token = strtok(a_str, delim);
-
-        while (token)
-        {
-            assert(idx < count);
-            *(result + idx++) = strdup(token);
-            token = strtok(0, delim);
-        }
-        assert(idx == count - 1);
-        *(result + idx) = 0;
-    }
-
-    return result;
-}
-
 void print_hex_ascii_line(const u_char *payload, int len, int offset) {
 	int i;
 	int gap;
@@ -218,8 +170,27 @@ void print_payload(const u_char *payload, int len) {
 // call back function for pcap_loop to display packet info
 void got_packet(u_char *args, const struct pcap_pkthdr *header,\
 	const u_char *packet) {
-	char *info;
-	char *tmp;
+	
+	// parse args and initialize http and string
+	boolean http = false;
+	char *string = NULL;
+	if (args != NULL) {
+		char g = *args;
+		if (g == 'g') {
+			http = true;
+			if (strlen(args+1) > 0) {
+				string = args + 1;
+				//printf("There is pattern string!\n");
+			}
+			//printf("New string: %s\n", string);
+		} else {
+			string = args;
+			//printf("New string: %s\n", string);
+		}
+	}
+	
+	char info[2000];
+	char tmp[100];
 	/* declare pointers to packet headers */
 	const struct sniff_ethernet *ethernet;
 	const struct sniff_ip *ip;
@@ -240,51 +211,78 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,\
 	char timebuf[126];
 	strcpy(timebuf, ptr);
 	timebuf[strlen(timebuf)-1] = 0;
-	printf("%s ", timebuf);
-	/*int i = sprintf(tmp, "%d.%d ", (int)header->ts.tv_sec, (int)header->ts.tv_usec);
-	strcat(info, tmp);
-	printf("%s", info);*/
+	//printf("%s ", timebuf);
+	sprintf(tmp, "%s ", timebuf);
+	strcpy(info, tmp);
+	memset(tmp, 0, strlen(tmp));
 	
 	// extract ethernet header
 	ethernet = (struct sniff_ethernet*)(packet);
 	
 	if (ntohs(ethernet->ether_type) == ETHERTYPE_IPV4) {
-		printf("IPv4 ");
+		//printf("IPv4 ");
+		strcat(info, "IPv4 ");
 		// extract ip header
 		ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
 		size_ip = IP_HL(ip)*4;
 		if (size_ip < 20) {
+			printf("%s", info);
 			printf("* Invalid IP header length: %u bytes\n", size_ip);
 			return;
 		}
 		
 		// for tcp packet
 		if (ip->ip_p == IPPROTO_TCP) {
-			printf("TCP ");
+			//printf("TCP ");
+			strcat(info, "TCP ");
 			tcp = (struct sniff_tcp*)(packet + SIZE_ETHERNET + size_ip);
 			size_tcp = TH_OFF(tcp)*4;
 			if (size_tcp < 20) {
+				printf("%s", info);
 				printf("* Invalid TCP header length: %u bytes\n", size_tcp);
 				return;
 			}
-			printf("%s.%d -> ", inet_ntoa(ip->ip_src), ntohs(tcp->th_sport));
-			printf("%s.%d ", inet_ntoa(ip->ip_dst), ntohs(tcp->th_dport));
-			printf("len %d ", ntohs(ip->ip_len));
+			//printf("%s.%d -> ", inet_ntoa(ip->ip_src), ntohs(tcp->th_sport));
+			sprintf(tmp, "%s.%d -> ", inet_ntoa(ip->ip_src), ntohs(tcp->th_sport));
+			strcpy(info, tmp);
+			memset(tmp, 0, strlen(tmp));
+			//printf("%s.%d ", inet_ntoa(ip->ip_dst), ntohs(tcp->th_dport));
+			sprintf(tmp, "%s.%d ", inet_ntoa(ip->ip_dst), ntohs(tcp->th_dport));
+			strcpy(info, tmp);
+			memset(tmp, 0, strlen(tmp));
+			//printf("len %d ", ntohs(ip->ip_len));
+			sprintf(tmp, "len %d ", ntohs(ip->ip_len));
+			strcpy(info, tmp);
+			memset(tmp, 0, strlen(tmp));
 			
 			// extract payload
 			payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
 			size_payload = ntohs(ip->ip_len) - (size_ip + size_tcp);
 			
 			// print payload
-			if (size_payload > 0)
-			{
-				printf("Payload (%d bytes):\n", size_payload);
-				print_payload(payload, size_payload);
-				/*char** tokens = str_split((char*)payload, '\n');
-				if (tokens) {
-					printf("%s", *(tokens));
-				}*/
+			if (size_payload > 0) {
+				//printf("Payload (%d bytes):\n", size_payload);
+				sprintf(tmp, "Payload (%d bytes):\n", size_payload);
+				strcpy(info, tmp);
+				memset(tmp, 0, strlen(tmp));
+				
+				if (string != NULL) {
+					if (strstr(payload, string) == NULL)
+						return;
+				}
+				
+				if (http) {
+					char tmp[strlen(payload)];
+					strcpy(tmp, payload);
+					char *ptr = strtok(tmp, " ");
+					ptr = strtok(NULL, " ");
+					printf("%s", info);
+					printf("%s\n", ptr);
+				} else {
+					print_payload(payload, size_payload);
+				}
 			}
+			printf("%s", info);
 			printf("\n");
 		} else if (ip->ip_p == IPPROTO_UDP) {
 			printf("UDP ");
@@ -338,9 +336,11 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,\
 			printf("\n");
 		}
 	} else if (ntohs(ethernet->ether_type) == ETHERTYPE_ARP) {
-		printf("ARP\n");
+		//printf("ARP\n");
+		strcat(info, "ARP\n");
 	} else {
-		printf("OTHER\n");
+		//printf("OTHER\n");
+		strcat(info, "OTHER\n");
 	}
 	
 	return;
@@ -450,7 +450,7 @@ int main(int argc, char *argv[]) {
 	printf("\nInitializing mydump using following parameters:\n\
 		interface: %s\n\
 		file: %s\n\
-		match string: %s\n\
+		string pattern: %s\n\
 		http sniffer mode: %s\n\
 		expression: %s\n\n\n", interface, file, string,\
 		http ? "true" : "false", expression);
@@ -521,7 +521,20 @@ int main(int argc, char *argv[]) {
 	}
 	
 	// now we start sniffing!
-	pcap_loop(handle, cnt, got_packet, string);
+	if (http) {
+		int len = 0;
+		if (string != NULL)
+			len = strlen(string);
+		char *tmp = (char *)malloc(len+2);
+		strcpy(tmp, "g");
+		if (string != NULL)
+			strcat(tmp, string);
+		
+		//printf("Old string: %s\n", tmp);
+		pcap_loop(handle, cnt, got_packet, tmp);
+	} else {
+		pcap_loop(handle, cnt, got_packet, string);
+	}
 	
 	//pcap_freecode(&filter);
 	pcap_close(handle);
