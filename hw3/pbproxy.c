@@ -10,38 +10,66 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+typedef enum { false, true } boolean;
+
 int main(int argc, char *argv[]) {
-	struct sockaddr_in pin;
-	struct hostent *nlp_host;
-	int sd;
-	char host_name[256];
-	int port;
+	int opt = 0;
+	char *listen_port = NULL;
+	boolean server_mode = false;
+	char *key_file = NULL;
+	char *dst = NULL;
+	char *dst_port = NULL;
 	
-	//初始化主机名和端口。主机名可以是IP，也可以是可被解析的名称
-	strcpy(host_name,"www.google.com");
-	port=80;
-	
-	//解析域名，如果是IP则不用解析，如果出错，显示错误信息
-	while ((nlp_host=gethostbyname(host_name)) == 0) {
-		printf("Resolve Error!\n");
+	while ((opt = getopt(argc, argv, "l:k:")) != -1) {
+		switch(opt) {
+			case 'l':
+				listen_port = optarg;
+				server_mode = true;
+				//printf("listen_port: %s\n", listen_port);
+				break;
+			case 'k':
+				key_file = optarg;
+				//printf("key_file: %s\n", key_file);
+				break;
+			case '?':
+				// when user didn't specify argument
+				if (optopt == 'l') {
+					printf("Please specify port number to listen!\n");
+					return 0;
+				} else if (optopt == 'k') {
+					printf("Please specify key file to use!\n");
+					return 0;
+				} else {
+					printf("Unknown argument!\n");
+					return 0;
+				}
+			default:
+				printf("Default case?!\n");
+				return 0;
+		}
 	}
 	
-	//设置pin变量，包括协议、地址、端口等，此段可直接复制到自己的程序中
-	bzero(&pin,sizeof(pin));
-	pin.sin_family=AF_INET;		//AF_INET表示使用IPv4
-	pin.sin_addr.s_addr=htonl(INADDR_ANY);  
-	pin.sin_addr.s_addr=((struct in_addr *)(nlp_host->h_addr))->s_addr;
-	pin.sin_port=htons(port);
-	
-	//建立socket
-	sd=socket(AF_INET,SOCK_STREAM,0);
-	
-	//建立连接
-	if (connect(sd,(struct sockaddr*)&pin,sizeof(pin))==-1) {
-		printf("Connect Error!\n");
+	// get destination ip and port
+	if (optind == argc - 2) {
+		dst = argv[optind];
+		dst_port = argv[optind+1];
 	} else {
-		printf("Connection established!\n");
+		printf("optind: %d, argc: %d\n", optind, argc);
+		printf("Incorrect destination and port arguments. Exiting...\n");
+		return 0;
 	}
 	
-	return 1;
+	if (key_file == NULL) {
+		printf("Key file not specified!\n");
+		return 0;
+	}
+	
+	printf("\nInitializing pbproxy using following parameters:\n\
+		server mode: %s\n\
+		listening port: %s\n\
+		key file: %s\n\
+		destination addr: %s\n\
+		destination port: %s\n\n\n"\
+		, server_mode ? "true" : "false", listen_port, key_file,\
+		dst, dst_port);
 }
