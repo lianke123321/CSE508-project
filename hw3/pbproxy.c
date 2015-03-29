@@ -4,8 +4,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
- 
-//以下头文件是为了使样例程序正常运行
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,16 +62,23 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	
-	printf("\nInitializing pbproxy using following parameters:\n\
+	/*printf("\nInitializing pbproxy using following parameters:\n\
 		server mode: %s\n\
 		listening port: %s\n\
 		key file: %s\n\
 		destination addr: %s\n\
 		destination port: %s\n\n\n"\
 		, server_mode ? "true" : "false", str_listen_port, key_file,\
-		str_dst, str_dst_port);
+		str_dst, str_dst_port);*/
 	
 	int dst_port = (int)strtol(str_dst_port, NULL, 10);
+	struct hostent *nlp_host;
+	
+	if ((nlp_host=gethostbyname(str_dst)) == 0) {
+		printf("Resolve Error!\n");
+		return 0;
+	}
+	
 	struct sockaddr_in servaddr;
 	bzero(&servaddr, sizeof(servaddr));
 	
@@ -111,23 +116,25 @@ int main(int argc, char *argv[]) {
 		servaddr.sin_family=AF_INET;
 		servaddr.sin_port=htons(dst_port);
 		
-		inet_pton(AF_INET, str_dst, &(servaddr.sin_addr));
+		servaddr.sin_addr.s_addr=((struct in_addr *)(nlp_host->h_addr))->s_addr;
 		
-		if (connect(sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr)) == -1) {
-			printf("Connect Error!\n");
+		if (connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
+			//printf("Connection failed!\n");
+			return 0;
 		} else {
-			printf("Connection established!\n");
+			//printf("Connection established!\n");
 		}
 		
-		while(1)
-		{
+		while(1) {
 			bzero(sendline, 100);
 			bzero(recvline, 100);
-			fgets(sendline,100,stdin); /*stdin = 0 , for standard input */
+			fgets(sendline, 100, stdin); /*stdin = 0 , for standard input */
 			
-			write(sockfd,sendline,strlen(sendline)+1);
-			read(sockfd,recvline,100);
-			printf("%s",recvline);
+			write(sockfd, sendline, strlen(sendline)+1);
+			read(sockfd, recvline, 100);
+			//printf("%s",recvline);
+			//fprintf(stdout, "%s", recvline);
+			fputs(recvline, stdout);
 		}
 	}
 	
