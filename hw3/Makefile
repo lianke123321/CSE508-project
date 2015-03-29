@@ -1,12 +1,15 @@
 # Adrian's Makefile for CSE 508 project 3
 
-all: clean pbproxy tmp_server
+all: clean pbproxy echo_server echo_client
 
-mydump: pbproxy.c
+pbproxy: pbproxy.c
 	gcc -g pbproxy.c -o pbproxy
 
-tmp_server: tmp_server.c
-	gcc -g tmp_server.c -o tmp_server
+echo_server: echo_server.c
+	gcc -g echo_server.c -o echo_server
+
+echo_client: echo_client.c
+	gcc -g echo_client.c -o echo_client
 
 clean:
-	rm -f *~ *.o *.out pbproxy tmp_server
+	rm -f *~ *.o *.out pbproxy echo_server echo_client
