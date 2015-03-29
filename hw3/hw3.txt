@@ -1,0 +1,83 @@
+CSE508: Network Security (PhD Section), Spring 2015
+
+Homework 3: Plugboard Proxy
+-------------------------------------------------------------------------------
+
+Submission deadline: April 3rd, 2015 11:59pm EDT
+Submission through email to: mikepo+CSE508HW3@cs.stonybrook.edu
+
+
+In this assignment you will develop a "plugboard" proxy for adding an extra
+layer of protection to publicly accessible network services.
+
+Consider for example the case of an SSH server with a public IP address. No
+matter how securely the server has been configured and how strong keys are
+used, it might suffer from a zero day vulnerability that allows remote code
+execution even before the completion of the authentication process. This could
+allow attackers to compromise the server even without having proper
+authentication credentials. The Heartbleed OpenSSL bug is a recent example of
+such a serious vulnerability against SSL/TLS.
+
+The plugboard proxy you are going to develop, named 'pbproxy', adds an extra
+layer of encryption to connections towards TCP services. Instead of connecting
+directly to the service, clients connect to pbproxy (running on the same
+server), which then relays all traffic to the actual service. Before relaying
+the traffic, pbproxy *always* decrypts it using a static symmetric key. This
+means that if the data of any connection towards the protected server is not
+properly encrypted, then it will turn into garbage before reaching the server.
+
+Attackers who might want to exploit a zero day vulnerability in the protected
+service will first have to know the secret key for having a chance to
+successfully deliver their attack vector to the server. This of course assumes
+that the plugboard proxy does not suffer from any vulnerability itself. Given
+that its task and its code are much simpler compared to an actual service
+(e.g., a web or SSH server), its code can be audited more easily and we can
+more confidently expose it as a publicly accessible service.
+
+Clients that want to access the protected server should proxy their traffic
+through a local instance of pbroxy, which will encrypt it using the same
+symmetric key used by the server. In essence, pbproxy can act both as a
+client-side proxy and as server-side reverse proxy.
+
+Your program should conform to the following specifications:
+
+pbproxy [-l port] -k keyfile destination port
+
+  -l  Reverse-proxy mode: listen for inbound connections on <port> and relay
+      them to <destination>:<port>
+
+  -k  Use the symmetric key contained in <keyfile> (as a hexadecimal string)
+
+* Data should be encrypted/decrypted using AES in CTR mode
+* In reverse-proxy mode, pbproxy should support multiple concurrent connections
+* In client proxy mode, plaintext traffic should be read from stdin
+
+Going back to the SSH example, let's see how pbproxy can be used to harden an
+SSH server. Assume that we want to protect a publicly accessible sshd running
+on vuln.cs.stonybrook.edu. First, we configure sshd to listen *only* on the
+localhost interface, making it inaccessible from the public network. Then, we
+fire up a reverse pbproxy instance:
+
+  pbproxy -k mykey -l 2222 localhost 22
+
+Clients can then connect to the SSH server using the following command:
+
+  ssh -o "ProxyCommand pbproxy -k mykey vuln.cs.stonybrook.edu 2222" localhost
+
+
+What to submit:
+
+A tarball with all required source code files, an appropriate Makefile, and a
+short report (.txt file is fine) with a brief description of your program.
+
+
+Hints:
+
+1) Some OpenSSL functions you might find useful: AES_set_encrypt_key,
+AES_ctr128_encrypt (you can also use OpenSSL's more flexible EVP interface,
+which allows for more and stronger options, e.g., aes-256-ctr).
+
+2) Mind your IVs!
+
+3) In the reverse-proxy mode, you may handle concurrent connections using
+either event-driven or multithreaded programming.
