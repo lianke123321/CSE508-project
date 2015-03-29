@@ -4,9 +4,7 @@
 #include <stdio.h>
 #include<string.h>
  
-int main()
-{
- 
+int main() {
     char str[100];
     int listen_fd, comm_fd;
  
@@ -26,16 +24,10 @@ int main()
  
     comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
  
-    while(1)
-    {
- 
+    while (1) {
         bzero( str, 100);
- 
         read(comm_fd,str,100);
- 
         printf("Echoing back - %s",str);
- 
         write(comm_fd, str, strlen(str)+1);
- 
     }
 }
