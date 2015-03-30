@@ -27,7 +27,7 @@ struct ctr_state {
 
 AES_KEY key; 
 
-int bytes_read, bytes_written;   
+//int bytes_read, bytes_written;   
 unsigned char indata[AES_BLOCK_SIZE]; 
 unsigned char outdata[AES_BLOCK_SIZE];
 unsigned char iv[AES_BLOCK_SIZE]; //16?
@@ -46,7 +46,7 @@ int init_ctr(struct ctr_state *state, const unsigned char iv[16]) {
 	memcpy(state->ivec, iv, 16); //16?
 }
 
-char* TextEncrypt(const unsigned char* enc_key, char * text) {
+char* TextEncrypt(const unsigned char* enc_key, char* text, int bytes_read) {
 	//Cria vector com valores aleatórios
 	if(!RAND_bytes(iv, AES_BLOCK_SIZE)) {
 		printf("Erro: Não foi possivel criar bytes aleatorios.\n");
@@ -61,7 +61,7 @@ char* TextEncrypt(const unsigned char* enc_key, char * text) {
 	
 	init_ctr(&state, iv); //Chamada do contador
 	
-	bytes_read = strlen(text);
+	//bytes_read = strlen(text);
 	
 	AES_set_encrypt_key(enc_key, 128, &key);	
 	
@@ -72,7 +72,8 @@ char* TextEncrypt(const unsigned char* enc_key, char * text) {
 	return outdata;
 }
 
-char* TextDecrypt(const unsigned char* enc_key, unsigned char* cypherText) {
+char* TextDecrypt(const unsigned char* enc_key, unsigned char* cypherText,\
+	int bytes_read) {
 	//Inicialização da Chave de encriptação 
 	if (AES_set_encrypt_key(enc_key, 128, &key) < 0) {
 		fprintf(stderr, "Nao foi possível definir chave de decodificacao.");
@@ -82,7 +83,7 @@ char* TextDecrypt(const unsigned char* enc_key, unsigned char* cypherText) {
 	init_ctr(&state, iv);//Chamada do contador
 	
 	//Encripta em blocos de 16 bytes e escreve o ficheiro output.txt cifrado
-	bytes_read = strlen(cypherText);
+	//bytes_read = strlen(cypherText);
 	
 	AES_set_encrypt_key(enc_key, 128, &key);
 	
