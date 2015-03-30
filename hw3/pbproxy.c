@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #include <openssl/aes.h>
 #include <openssl/rand.h> 
@@ -17,6 +18,13 @@
 #define BUF_SIZE 4096
 
 typedef enum { false, true } boolean;
+
+typedef struct {
+	int sock;
+	struct sockaddr address;
+	struct sockaddr_in sshaddr;
+	int addr_len;
+} connection_t;
 
 struct ctr_state {
 	unsigned char ivec[AES_BLOCK_SIZE];  
@@ -91,6 +99,80 @@ char* TextDecrypt(const unsigned char* enc_key, unsigned char* cypherText,\
 	
 	fflush(stdin);
 	return outdata;
+}
+
+void* server_process(void* ptr) {
+	if (!ptr) pthread_exit(0); 
+	
+	//int tid;
+	//tid = (int)pthread_getthreadid_np();
+	
+	printf("New thread started\n");
+	
+	connection_t *conn = (connection_t *)ptr;
+	char buffer[BUF_SIZE];
+	int ssh_fd, n;
+	ssh_fd = socket(AF_INET, SOCK_STREAM, 0);
+	
+	if (connect(ssh_fd, (struct sockaddr *)&conn->sshaddr, sizeof(conn->sshaddr)) == -1) {
+		printf("Connection to ssh failed!\n");
+		pthread_exit(0);
+	} else {
+		printf("Connection to ssh established!\n");
+	}
+	
+	int flags = fcntl(conn->sock, F_GETFL);
+	if (flags == -1) {
+		printf("read sock 1 flag error!\n");
+		pthread_exit(0);
+	}
+	fcntl(conn->sock, F_SETFL, flags | O_NONBLOCK);
+	
+	flags = fcntl(ssh_fd, F_GETFL);
+	if (flags == -1) {
+		printf("read ssh_fd flag error!\n");
+		pthread_exit(0);
+	}
+	fcntl(ssh_fd, F_SETFL, flags | O_NONBLOCK);
+	
+	while (1) {
+		//bzero(buffer, BUF_SIZE);
+		//fputs("about to read from comm_fd\n", stderr);
+		while ((n = read(conn->sock, buffer, BUF_SIZE)) > 0) {
+			//int m = n;
+			//fputs("comm_fd -> ssh_fd\n", stderr);
+			write(ssh_fd, buffer, n);
+			//write(comm_fd, buffer, n);
+			if (n < BUF_SIZE)
+				break;
+		};
+		//printf("n for comm_fd: %d\n", n);
+		//fputs("about to read from ssh_fd\n", stderr);
+		while ((n = read(ssh_fd, buffer, BUF_SIZE)) > 0) {
+			//fputs("ssh_fd -> comm_fd\n", stderr);
+			write(conn->sock, buffer, n);
+			if (n < BUF_SIZE)
+				break;
+		}
+		//printf("n for ssh_fd: %d\n", n);
+		
+		/*int error = 0;
+		socklen_t len = sizeof(error);
+		int retval = getsockopt(comm_fd, SOL_SOCKET, SO_ERROR, &error, &len);
+		if (retval != 0) {
+			printf("Ahhhhh!\n");
+		}
+		retval = getsockopt(ssh_fd, SOL_SOCKET, SO_ERROR, &error, &len);
+		if (retval != 0) {
+			printf("Ahhhhh!\n");
+		}*/
+		//fputs("finished one round!\n", stderr);
+	}
+	
+	close(conn->sock);
+	close(ssh_fd);
+	free(conn);
+	pthread_exit(0);
 }
 
 int main(int argc, char *argv[]) {
@@ -168,11 +250,12 @@ int main(int argc, char *argv[]) {
 	
 	// pbproxy running in server mode
 	if (server_mode == true) {
-		char buffer[BUF_SIZE];
-		int listen_fd, comm_fd, ssh_fd, n;
+		connection_t *connection;
+		pthread_t thread;
+		int listen_fd;
 		int listen_port = (int)strtol(str_listen_port, NULL, 10);
 		listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-		ssh_fd = socket(AF_INET, SOCK_STREAM, 0);
+		//ssh_fd = socket(AF_INET, SOCK_STREAM, 0);
 		
 		servaddr.sin_family = AF_INET;
 		servaddr.sin_addr.s_addr = htons(INADDR_ANY);
@@ -184,65 +267,23 @@ int main(int argc, char *argv[]) {
 		
 		bind(listen_fd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 		
-		listen(listen_fd, 10);
-		
-		comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
-		
-		if (connect(ssh_fd, (struct sockaddr *)&sshaddr, sizeof(sshaddr)) == -1) {
-			printf("Connection to ssh failed!\n");
+		if (listen(listen_fd, 10) < 0) {
+			printf("Attempting to listen failed!\n");
 			return 0;
-		} else {
-			printf("Connection to ssh established!\n");
-		}
-		
-		//fputs("about to change blocking mode\n", stderr);
-		int flags = fcntl(comm_fd, F_GETFL);
-		if (flags == -1) {
-			printf("read comm_fd flag error!\n");
-			return 0;
-		}
-		fcntl(comm_fd, F_SETFL, flags | O_NONBLOCK);
-		
-		flags = fcntl(ssh_fd, F_GETFL);
-		if (flags == -1) {
-			printf("read ssh_fd flag error!\n");
-			return 0;
-		}
-		fcntl(ssh_fd, F_SETFL, flags | O_NONBLOCK);
+		};
 		
 		while (1) {
-			//bzero(buffer, BUF_SIZE);
-			//fputs("about to read from comm_fd\n", stderr);
-			while ((n = read(comm_fd, buffer, BUF_SIZE)) > 0) {
-				//int m = n;
-				//fputs("comm_fd -> ssh_fd\n", stderr);
-				write(ssh_fd, buffer, n);
-				//write(comm_fd, buffer, n);
-				if (n < BUF_SIZE)
-					break;
-			};
-			//printf("n for comm_fd: %d\n", n);
-			//fputs("about to read from ssh_fd\n", stderr);
-			while ((n = read(ssh_fd, buffer, BUF_SIZE)) > 0) {
-				//fputs("ssh_fd -> comm_fd\n", stderr);
-				write(comm_fd, buffer, n);
-				if (n < BUF_SIZE)
-					break;
+			connection = (connection_t *)malloc(sizeof(connection_t));
+			connection->sock = accept(listen_fd, &connection->address, &connection->addr_len);
+			if (connection->sock > 0) {
+				connection->sshaddr = sshaddr;
+				pthread_create(&thread, 0, server_process, (void*)connection);
+				pthread_detach(thread);
+			} else {
+				free(connection);
 			}
-			//printf("n for ssh_fd: %d\n", n);
-			
-			/*int error = 0;
-			socklen_t len = sizeof(error);
-			int retval = getsockopt(comm_fd, SOL_SOCKET, SO_ERROR, &error, &len);
-			if (retval != 0) {
-				printf("Ahhhhh!\n");
-			}
-			retval = getsockopt(ssh_fd, SOL_SOCKET, SO_ERROR, &error, &len);
-			if (retval != 0) {
-				printf("Ahhhhh!\n");
-			}*/
-			//fputs("finished one round!\n", stderr);
 		}
+		
 	} else {
 		// pbproxy running in client mode
 		int sockfd, n;

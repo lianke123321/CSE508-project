@@ -3,7 +3,7 @@
 all: clean pbproxy
 
 pbproxy: pbproxy.c
-	gcc -g pbproxy.c -o pbproxy.o -lcrypto
+	gcc -g pbproxy.c -o pbproxy.o -lcrypto -lpthread
 
 test_ssl: test_ssl.c
 	gcc -g test_ssl.c -o test_ssl.o -lcrypto
