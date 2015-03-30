@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	
-	fprintf(stderr, "\nInitializing pbproxy using following parameters:\n\
+	fprintf(stderr, "\n\tInitializing pbproxy using following parameters:\n\
 		server mode: %s\n\
 		listening port: %s\n\
 		key file: %s\n\
@@ -286,8 +286,6 @@ int main(int argc, char *argv[]) {
 	} else {
 		// pbproxy running in client mode
 		int sockfd, n;
-		//char sendline[BUF_SIZE];
-		//char recvline[BUF_SIZE];
 		char buffer[BUF_SIZE];
 		
 		sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -298,20 +296,14 @@ int main(int argc, char *argv[]) {
 		servaddr.sin_addr.s_addr = ((struct in_addr *)(nlp_host->h_addr))->s_addr;
 		
 		if (connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
-			//printf("Connection failed!\n");
+			fprintf(stderr, "Connection failed!\n");
 			return 0;
-		} else {
-			//printf("Connection established!\n");
 		}
 		
 		fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
 		fcntl(sockfd, F_SETFL, O_NONBLOCK);
-		//fcntl(STDOUT_FILENO, F_SETFL, O_NONBLOCK);
 		
 		while(1) {
-			//bzero(sendline, BUF_SIZE);
-			//bzero(recvline, BUF_SIZE);
-			//fputs("about to take input\n", stderr);
 			while ((n = read(STDIN_FILENO, buffer, BUF_SIZE)) > 0) {
 				//fputs("ssh -> socket\n", stderr);
 				write(sockfd, buffer, n);
@@ -319,35 +311,11 @@ int main(int argc, char *argv[]) {
 					break;
 			}
 			
-			//n = 0;
-			//fputs("read finished\n", stderr);
-			//fgets(sendline, BUF_SIZE, stdin);
-			//fputs("read from ssh\n", stderr);
-			//write(STDERR_FILENO, sendline, n);
-			//fputs(sendline, stderr);
-			
-			//write(sockfd, buffer, n);
-			//read(sockfd, recvline, BUF_SIZE);
-			
 			while ((n = read(sockfd, buffer, BUF_SIZE)) > 0) {
-				//fputs("read from sock exceeds buffer size!\n", stderr);
-				//fprintf(stderr, "n is %d\n", n);
-				//return 0;
-				//fputs("socket -> ssh\n", stderr);
 				write(STDOUT_FILENO, buffer, n);
 				if (n < BUF_SIZE)
 					break;
 			}
-			
-			//n = 0;
-			//fputs("write finished\n", stderr);
-			//fprintf(stdout, "%s", recvline);
-			//fputs("write to ssh\n", stderr);
-			//write(STDERR_FILENO, recvline, n);
-			//fputs("write to end\n", stderr);
-			//fputs(recvline, stderr);
-			//fputs(recvline, stdout);
-			//write(STDOUT_FILENO, buffer, n);
 		}
 	}
 	
