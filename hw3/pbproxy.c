@@ -112,8 +112,8 @@ void* server_process(void* ptr) {
 	connection_t *conn = (connection_t *)ptr;
 	char buffer[BUF_SIZE];
 	int ssh_fd, n;
-	boolean sock_done = false;
 	boolean ssh_done = false;
+	
 	ssh_fd = socket(AF_INET, SOCK_STREAM, 0);
 	
 	if (connect(ssh_fd, (struct sockaddr *)&conn->sshaddr, sizeof(conn->sshaddr)) == -1) {
@@ -140,15 +140,10 @@ void* server_process(void* ptr) {
 	while (1) {
 		//bzero(buffer, BUF_SIZE);
 		//fputs("about to read from comm_fd\n", stderr);
-		while ((n = read(conn->sock, buffer, BUF_SIZE)) >= 0) {
+		while ((n = read(conn->sock, buffer, BUF_SIZE)) > 0) {
 			//int m = n;
 			//fputs("comm_fd -> ssh_fd\n", stderr);
-			if (n > 0)
-				write(ssh_fd, buffer, n);
-			if (sock_done == false && n == 0) {
-				//printf("enter sock_done\n");
-				sock_done = true;
-			}
+			write(ssh_fd, buffer, n);
 			if (n < BUF_SIZE)
 				break;
 		};
@@ -231,14 +226,14 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	
-	/*printf("\nInitializing pbproxy using following parameters:\n\
+	fprintf(stderr, "\nInitializing pbproxy using following parameters:\n\
 		server mode: %s\n\
 		listening port: %s\n\
 		key file: %s\n\
 		destination addr: %s\n\
 		destination port: %s\n\n\n"\
 		, server_mode ? "true" : "false", str_listen_port, key_file,\
-		str_dst, str_dst_port);*/
+		str_dst, str_dst_port);
 	
 	int dst_port = (int)strtol(str_dst_port, NULL, 10);
 	struct hostent *nlp_host;
