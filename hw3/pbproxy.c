@@ -90,6 +90,10 @@ void* server_process(void* ptr) {
 	int flags = fcntl(conn->sock, F_GETFL);
 	if (flags == -1) {
 		printf("read sock 1 flag error!\n");
+		printf("Closing connections and exit thread!\n");
+		close(conn->sock);
+		close(ssh_fd);
+		free(conn);
 		pthread_exit(0);
 	}
 	fcntl(conn->sock, F_SETFL, flags | O_NONBLOCK);
@@ -113,7 +117,11 @@ void* server_process(void* ptr) {
 	while (1) {
 		while ((n = read(conn->sock, buffer, BUF_SIZE)) > 0) {
 			if (n != 8) {
-				printf("First message not iv!\n");
+				printf("First message not iv! n: %d\n", n);
+				printf("Closing connections and exit thread!\n");
+				close(conn->sock);
+				close(ssh_fd);
+				free(conn);
 				pthread_exit(0);
 			}
 			memcpy(iv, buffer, n);
@@ -301,12 +309,14 @@ int main(int argc, char *argv[]) {
 					fprintf(stderr, "Error generating random bytes.\n");
 					exit(1);
 				}
+				fprintf(stderr, "Write 8 bytes iv first\n");
 				write(sockfd, iv, 8);
 				
 				unsigned char encryption[n];
 				init_ctr(&state, iv);
 				AES_ctr128_encrypt(buffer, encryption, n, &aes_key, state.ivec, state.ecount, &state.num);
 				
+				fprintf(stderr, "Then %d bytes encrypted message\n", n);
 				write(sockfd, encryption, n);
 				if (n < BUF_SIZE)
 					break;
