@@ -4,9 +4,12 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#define BUF_SIZE 4096
 
 typedef enum { false, true } boolean;
 
@@ -84,7 +87,7 @@ int main(int argc, char *argv[]) {
 	
 	// pbproxy running in server mode
 	if (server_mode == true) {
-		char str[100];
+		char str[BUF_SIZE];
 		int listen_fd, comm_fd;
 		int listen_port = (int)strtol(str_listen_port, NULL, 10);
 		listen_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -100,18 +103,19 @@ int main(int argc, char *argv[]) {
 		comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
 		
 		while (1) {
-			bzero(str, 100);
-			read(comm_fd, str, 100);
+			bzero(str, BUF_SIZE);
+			read(comm_fd, str, BUF_SIZE);
 			printf("Echoing back - %s",str);
 			write(comm_fd, str, strlen(str)+1);
 		}
 	} else {
 		// pbproxy running in client mode
-		int sockfd,n;
-		char sendline[100];
-		char recvline[100];
+		int sockfd, n;
+		//char sendline[BUF_SIZE];
+		//char recvline[BUF_SIZE];
+		char buffer[BUF_SIZE];
 		
-		sockfd=socket(AF_INET,SOCK_STREAM,0);
+		sockfd = socket(AF_INET,SOCK_STREAM,0);
 		
 		servaddr.sin_family=AF_INET;
 		servaddr.sin_port=htons(dst_port);
@@ -125,16 +129,50 @@ int main(int argc, char *argv[]) {
 			//printf("Connection established!\n");
 		}
 		
+		fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
+		fcntl(sockfd, F_SETFL, O_NONBLOCK);
+		//fcntl(STDOUT_FILENO, F_SETFL, O_NONBLOCK);
+		
 		while(1) {
-			bzero(sendline, 100);
-			bzero(recvline, 100);
-			fgets(sendline, 100, stdin); /*stdin = 0 , for standard input */
+			//bzero(sendline, BUF_SIZE);
+			//bzero(recvline, BUF_SIZE);
+			//fputs("about to take input\n", stderr);
+			while ((n = read(STDIN_FILENO, buffer, BUF_SIZE)) > 0) {
+				//fputs("ssh -> socket\n", stderr);
+				write(sockfd, buffer, n);
+				if (n < BUF_SIZE)
+					break;
+			}
 			
-			write(sockfd, sendline, strlen(sendline)+1);
-			read(sockfd, recvline, 100);
-			//printf("%s",recvline);
+			//n = 0;
+			//fputs("read finished\n", stderr);
+			//fgets(sendline, BUF_SIZE, stdin);
+			//fputs("read from ssh\n", stderr);
+			//write(STDERR_FILENO, sendline, n);
+			//fputs(sendline, stderr);
+			
+			//write(sockfd, buffer, n);
+			//read(sockfd, recvline, BUF_SIZE);
+			
+			while ((n = read(sockfd, buffer, BUF_SIZE)) > 0) {
+				//fputs("read from sock exceeds buffer size!\n", stderr);
+				//fprintf(stderr, "n is %d\n", n);
+				//return 0;
+				//fputs("socket -> ssh\n", stderr);
+				write(STDOUT_FILENO, buffer, n);
+				if (n < BUF_SIZE)
+					break;
+			}
+			
+			//n = 0;
+			//fputs("write finished\n", stderr);
 			//fprintf(stdout, "%s", recvline);
-			fputs(recvline, stdout);
+			//fputs("write to ssh\n", stderr);
+			//write(STDERR_FILENO, recvline, n);
+			//fputs("write to end\n", stderr);
+			//fputs(recvline, stderr);
+			//fputs(recvline, stdout);
+			//write(STDOUT_FILENO, buffer, n);
 		}
 	}
 	
