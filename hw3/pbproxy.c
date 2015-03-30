@@ -112,6 +112,8 @@ void* server_process(void* ptr) {
 	connection_t *conn = (connection_t *)ptr;
 	char buffer[BUF_SIZE];
 	int ssh_fd, n;
+	boolean sock_done = false;
+	boolean ssh_done = false;
 	ssh_fd = socket(AF_INET, SOCK_STREAM, 0);
 	
 	if (connect(ssh_fd, (struct sockaddr *)&conn->sshaddr, sizeof(conn->sshaddr)) == -1) {
@@ -138,37 +140,39 @@ void* server_process(void* ptr) {
 	while (1) {
 		//bzero(buffer, BUF_SIZE);
 		//fputs("about to read from comm_fd\n", stderr);
-		while ((n = read(conn->sock, buffer, BUF_SIZE)) > 0) {
+		while ((n = read(conn->sock, buffer, BUF_SIZE)) >= 0) {
 			//int m = n;
 			//fputs("comm_fd -> ssh_fd\n", stderr);
-			write(ssh_fd, buffer, n);
-			//write(comm_fd, buffer, n);
+			if (n > 0)
+				write(ssh_fd, buffer, n);
+			if (sock_done == false && n == 0) {
+				//printf("enter sock_done\n");
+				sock_done = true;
+			}
 			if (n < BUF_SIZE)
 				break;
 		};
 		//printf("n for comm_fd: %d\n", n);
 		//fputs("about to read from ssh_fd\n", stderr);
-		while ((n = read(ssh_fd, buffer, BUF_SIZE)) > 0) {
+		while ((n = read(ssh_fd, buffer, BUF_SIZE)) >= 0) {
 			//fputs("ssh_fd -> comm_fd\n", stderr);
-			write(conn->sock, buffer, n);
+			if (n > 0)
+				write(conn->sock, buffer, n);
+			if (ssh_done == false && n == 0) {
+				//printf("enter ssh_done\n");
+				ssh_done = true;
+			}
 			if (n < BUF_SIZE)
 				break;
 		}
-		//printf("n for ssh_fd: %d\n", n);
 		
-		/*int error = 0;
-		socklen_t len = sizeof(error);
-		int retval = getsockopt(comm_fd, SOL_SOCKET, SO_ERROR, &error, &len);
-		if (retval != 0) {
-			printf("Ahhhhh!\n");
+		if (ssh_done) {
+			//printf("enter\n");
+			break;
 		}
-		retval = getsockopt(ssh_fd, SOL_SOCKET, SO_ERROR, &error, &len);
-		if (retval != 0) {
-			printf("Ahhhhh!\n");
-		}*/
-		//fputs("finished one round!\n", stderr);
 	}
 	
+	printf("Closing connections and exit thread!\n");
 	close(conn->sock);
 	close(ssh_fd);
 	free(conn);
