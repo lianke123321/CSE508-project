@@ -24,81 +24,45 @@ typedef struct {
 	struct sockaddr address;
 	struct sockaddr_in sshaddr;
 	int addr_len;
+	const char *key;
 } connection_t;
 
 struct ctr_state {
 	unsigned char ivec[AES_BLOCK_SIZE];  
 	unsigned int num; 
 	unsigned char ecount[AES_BLOCK_SIZE]; 
-}; 
+};
 
-
-AES_KEY key; 
-
-//int bytes_read, bytes_written;   
-unsigned char indata[AES_BLOCK_SIZE]; 
-unsigned char outdata[AES_BLOCK_SIZE];
-unsigned char iv[AES_BLOCK_SIZE]; //16?
-struct ctr_state state;
-
-
-int init_ctr(struct ctr_state *state, const unsigned char iv[16]) {
-	/*O aes_ctr128_encrypt exige um 'num' e um 'ecount' definidos a zero na primeira chamada. */
+int init_ctr(struct ctr_state *state, const unsigned char iv[8]) {
+	/* aes_ctr128_encrypt requires 'num' and 'ecount' set to zero on the
+	 * first call. */
 	state->num = 0;
-	memset(state->ecount, 0, AES_BLOCK_SIZE); //16?
-	
-	/* Inicilaização do contador no 'ivec' a 0 */
-	memset(state->ecount, 0, 16); //16?
-	
-	/* Copia o IV para o 'ivec' */
-	memcpy(state->ivec, iv, 16); //16?
+	memset(state->ecount, 0, AES_BLOCK_SIZE);
+
+	/* Initialise counter in 'ivec' to 0 */
+	memset(state->ivec + 8, 0, 8);
+
+	/* Copy IV into 'ivec' */
+	memcpy(state->ivec, iv, 8);
 }
 
-char* TextEncrypt(const unsigned char* enc_key, char* text, int bytes_read) {
-	//Cria vector com valores aleatórios
-	if(!RAND_bytes(iv, AES_BLOCK_SIZE)) {
-		printf("Erro: Não foi possivel criar bytes aleatorios.\n");
-		exit(1);
-	}
+char* read_file(const char* filename) {
+	char *buffer = 0;
+	long length;
+	FILE *f = fopen (filename, "rb");
 	
-	//Inicializa a chave de encriptação
-	if (AES_set_encrypt_key(enc_key, 128, &key) < 0) {
-		fprintf(stderr, "Nao foi possível definir chave de encriptacao.");
-		exit(1);
-	}
+	if (f) {
+		fseek (f, 0, SEEK_END);
+		length = ftell (f);
+		fseek (f, 0, SEEK_SET);
+		buffer = malloc (length);
+		if (buffer)
+			fread (buffer, 1, length, f);
+		fclose (f);
+	} else
+		return 0;
 	
-	init_ctr(&state, iv); //Chamada do contador
-	
-	//bytes_read = strlen(text);
-	
-	AES_set_encrypt_key(enc_key, 128, &key);	
-	
-	//Encripta em blocos de 16 bytes e guarda o texto cifrado numa string -> outdata
-	AES_ctr128_encrypt(text, outdata, bytes_read, &key, state.ivec, state.ecount, &state.num);
-	
-	fflush(stdin);
-	return outdata;
-}
-
-char* TextDecrypt(const unsigned char* enc_key, unsigned char* cypherText,\
-	int bytes_read) {
-	//Inicialização da Chave de encriptação 
-	if (AES_set_encrypt_key(enc_key, 128, &key) < 0) {
-		fprintf(stderr, "Nao foi possível definir chave de decodificacao.");
-		exit(1);
-	}
-	
-	init_ctr(&state, iv);//Chamada do contador
-	
-	//Encripta em blocos de 16 bytes e escreve o ficheiro output.txt cifrado
-	//bytes_read = strlen(cypherText);
-	
-	AES_set_encrypt_key(enc_key, 128, &key);
-	
-	AES_ctr128_encrypt(cypherText, outdata, bytes_read, &key, state.ivec, state.ecount, &state.num);
-	
-	fflush(stdin);
-	return outdata;
+	return buffer;
 }
 
 void* server_process(void* ptr) {
@@ -137,34 +101,40 @@ void* server_process(void* ptr) {
 	}
 	fcntl(ssh_fd, F_SETFL, flags | O_NONBLOCK);
 	
+	struct ctr_state state;
+	unsigned char iv[8] = "iek,87sa";
+	AES_KEY aes_key;
+	
+	if (AES_set_encrypt_key(conn->key, 128, &aes_key) < 0) {
+		fprintf(stderr, "Set encryption key error!\n");
+		exit(1);
+	}
+	
 	while (1) {
-		//bzero(buffer, BUF_SIZE);
-		//fputs("about to read from comm_fd\n", stderr);
 		while ((n = read(conn->sock, buffer, BUF_SIZE)) > 0) {
-			//int m = n;
-			//fputs("comm_fd -> ssh_fd\n", stderr);
-			write(ssh_fd, buffer, n);
+			unsigned char decryption[n];
+			init_ctr(&state, iv);
+			
+			AES_ctr128_encrypt(buffer, decryption, n, &aes_key, state.ivec, state.ecount, &state.num);
+			
+			write(ssh_fd, decryption, n);
 			if (n < BUF_SIZE)
 				break;
 		};
-		//printf("n for comm_fd: %d\n", n);
-		//fputs("about to read from ssh_fd\n", stderr);
+		
 		while ((n = read(ssh_fd, buffer, BUF_SIZE)) >= 0) {
-			//fputs("ssh_fd -> comm_fd\n", stderr);
 			if (n > 0)
 				write(conn->sock, buffer, n);
-			if (ssh_done == false && n == 0) {
-				//printf("enter ssh_done\n");
+			
+			if (ssh_done == false && n == 0)
 				ssh_done = true;
-			}
+			
 			if (n < BUF_SIZE)
 				break;
 		}
 		
-		if (ssh_done) {
-			//printf("enter\n");
+		if (ssh_done)
 			break;
-		}
 	}
 	
 	printf("Closing connections and exit thread!\n");
@@ -233,6 +203,12 @@ int main(int argc, char *argv[]) {
 		, server_mode ? "true" : "false", str_listen_port, key_file,\
 		str_dst, str_dst_port);
 	
+	unsigned const char *key = read_file(key_file);
+	if (!key) {
+		fprintf(stderr, "read key file failed!\n");
+		return 0;
+	}
+	
 	int dst_port = (int)strtol(str_dst_port, NULL, 10);
 	struct hostent *nlp_host;
 	
@@ -274,6 +250,7 @@ int main(int argc, char *argv[]) {
 			connection->sock = accept(listen_fd, &connection->address, &connection->addr_len);
 			if (connection->sock > 0) {
 				connection->sshaddr = sshaddr;
+				connection->key = key;
 				pthread_create(&thread, 0, server_process, (void*)connection);
 				pthread_detach(thread);
 			} else {
@@ -301,10 +278,22 @@ int main(int argc, char *argv[]) {
 		fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
 		fcntl(sockfd, F_SETFL, O_NONBLOCK);
 		
+		struct ctr_state state;
+		unsigned char iv[8] = "iek,87sa";
+		AES_KEY aes_key;
+		
+		if (AES_set_encrypt_key(key, 128, &aes_key) < 0) {
+			fprintf(stderr, "Set encryption key error!\n");
+			exit(1);
+		}
+		
 		while(1) {
 			while ((n = read(STDIN_FILENO, buffer, BUF_SIZE)) > 0) {
-				//fputs("ssh -> socket\n", stderr);
-				write(sockfd, buffer, n);
+				unsigned char encryption[n];
+				init_ctr(&state, iv);
+				AES_ctr128_encrypt(buffer, encryption, n, &aes_key, state.ivec, state.ecount, &state.num);
+				
+				write(sockfd, encryption, n);
 				if (n < BUF_SIZE)
 					break;
 			}
