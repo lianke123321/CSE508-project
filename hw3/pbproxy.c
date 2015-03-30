@@ -187,26 +187,24 @@ int main(int argc, char *argv[]) {
 			case 'l':
 				str_listen_port = optarg;
 				server_mode = true;
-				//printf("listen_port: %s\n", listen_port);
 				break;
 			case 'k':
 				key_file = optarg;
-				//printf("key_file: %s\n", key_file);
 				break;
 			case '?':
 				// when user didn't specify argument
 				if (optopt == 'l') {
-					printf("Please specify port number to listen!\n");
+					fprintf(stderr, "Please specify port number to listen!\n");
 					return 0;
 				} else if (optopt == 'k') {
-					printf("Please specify key file to use!\n");
+					fprintf(stderr, "Please specify key file to use!\n");
 					return 0;
 				} else {
-					printf("Unknown argument!\n");
+					fprintf(stderr, "Unknown argument!\n");
 					return 0;
 				}
 			default:
-				printf("Default case?!\n");
+				fprintf(stderr, "Default case?!\n");
 				return 0;
 		}
 	}
@@ -216,13 +214,13 @@ int main(int argc, char *argv[]) {
 		str_dst = argv[optind];
 		str_dst_port = argv[optind+1];
 	} else {
-		printf("optind: %d, argc: %d\n", optind, argc);
-		printf("Incorrect destination and port arguments. Exiting...\n");
+		fprintf(stderr, "optind: %d, argc: %d\n", optind, argc);
+		fprintf(stderr, "Incorrect destination and port arguments. Exiting...\n");
 		return 0;
 	}
 	
 	if (key_file == NULL) {
-		printf("Key file not specified!\n");
+		fprintf(stderr, "Key file not specified!\n");
 		return 0;
 	}
 	
@@ -239,7 +237,7 @@ int main(int argc, char *argv[]) {
 	struct hostent *nlp_host;
 	
 	if ((nlp_host=gethostbyname(str_dst)) == 0) {
-		printf("Resolve Error!\n");
+		fprintf(stderr, "Resolve Error!\n");
 		return 0;
 	}
 	
@@ -267,7 +265,7 @@ int main(int argc, char *argv[]) {
 		bind(listen_fd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 		
 		if (listen(listen_fd, 10) < 0) {
-			printf("Attempting to listen failed!\n");
+			fprintf(stderr, "Attempting to listen failed!\n");
 			return 0;
 		};
 		
