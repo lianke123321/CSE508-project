@@ -115,10 +115,17 @@ void* server_process(void* ptr) {
 	
 	while (1) {
 		while ((n = read(conn->sock, buffer, BUF_SIZE)) > 0) {
+			if (n < 8) {
+				printf("Packet length smaller than 8!\n");
+				close(conn->sock);
+				close(ssh_fd);
+				free(conn);
+				pthread_exit(0);
+			}
 			unsigned char iv[8];
 			memcpy(iv, buffer, 8);
 			
-			unsigned char decryption[n];
+			unsigned char decryption[n-8];
 			init_ctr(&state, iv);
 			
 			AES_ctr128_encrypt(buffer+8, decryption, n-8, &aes_key, state.ivec, state.ecount, &state.num);
@@ -301,13 +308,12 @@ int main(int argc, char *argv[]) {
 				}
 				char *tmp = (char*)malloc(n + 8);
 				memcpy(tmp, iv, 8);
-				memcpy(tmp+8, buffer, n);
 				//write(sockfd, iv, 8);
 				
 				unsigned char encryption[n];
 				init_ctr(&state, iv);
 				AES_ctr128_encrypt(buffer, encryption, n, &aes_key, state.ivec, state.ecount, &state.num);
-				
+				memcpy(tmp+8, encryption, n);
 				//fprintf(stderr, "Then %d bytes encrypted message\n", n);
 				write(sockfd, tmp, n + 8);
 				free(tmp);
