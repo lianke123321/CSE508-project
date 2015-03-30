@@ -82,19 +82,25 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	
-	struct sockaddr_in servaddr;
+	struct sockaddr_in servaddr, sshaddr;
 	bzero(&servaddr, sizeof(servaddr));
+	bzero(&servaddr, sizeof(sshaddr));
 	
 	// pbproxy running in server mode
 	if (server_mode == true) {
-		char str[BUF_SIZE];
-		int listen_fd, comm_fd;
+		char buffer[BUF_SIZE];
+		int listen_fd, comm_fd, ssh_fd, n;
 		int listen_port = (int)strtol(str_listen_port, NULL, 10);
 		listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+		ssh_fd = socket(AF_INET, SOCK_STREAM, 0);
 		
 		servaddr.sin_family = AF_INET;
 		servaddr.sin_addr.s_addr = htons(INADDR_ANY);
 		servaddr.sin_port = htons(listen_port);
+		
+		sshaddr.sin_family = AF_INET;
+		sshaddr.sin_port = htons(dst_port);
+		sshaddr.sin_addr.s_addr = ((struct in_addr *)(nlp_host->h_addr))->s_addr;
 		
 		bind(listen_fd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 		
@@ -103,10 +109,15 @@ int main(int argc, char *argv[]) {
 		comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
 		
 		while (1) {
-			bzero(str, BUF_SIZE);
-			read(comm_fd, str, BUF_SIZE);
-			printf("Echoing back - %s",str);
-			write(comm_fd, str, strlen(str)+1);
+			//bzero(buffer, BUF_SIZE);
+			while ((n = read(comm_fd, buffer, BUF_SIZE)) > 0) {
+				printf("Echoing back - %s",buffer);
+				write(comm_fd, buffer, strlen(buffer)+1);
+				if (n < BUF_SIZE)
+					break;
+			};
+			//printf("Echoing back - %s",buffer);
+			//write(comm_fd, buffer, strlen(buffer)+1);
 		}
 	} else {
 		// pbproxy running in client mode
@@ -115,12 +126,12 @@ int main(int argc, char *argv[]) {
 		//char recvline[BUF_SIZE];
 		char buffer[BUF_SIZE];
 		
-		sockfd = socket(AF_INET,SOCK_STREAM,0);
+		sockfd = socket(AF_INET, SOCK_STREAM, 0);
 		
-		servaddr.sin_family=AF_INET;
-		servaddr.sin_port=htons(dst_port);
+		servaddr.sin_family = AF_INET;
+		servaddr.sin_port = htons(dst_port);
 		
-		servaddr.sin_addr.s_addr=((struct in_addr *)(nlp_host->h_addr))->s_addr;
+		servaddr.sin_addr.s_addr = ((struct in_addr *)(nlp_host->h_addr))->s_addr;
 		
 		if (connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
 			//printf("Connection failed!\n");
