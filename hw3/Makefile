@@ -3,7 +3,7 @@
 all: clean pbproxy
 
 pbproxy: pbproxy.c
-	gcc -g pbproxy.c -o pbproxy.o
+	gcc -g pbproxy.c -o pbproxy.o -lssl
 
 clean:
 	rm -f *~ *.o *.out

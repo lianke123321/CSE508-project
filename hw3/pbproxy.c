@@ -9,9 +9,88 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <openssl/aes.h>
+#include <openssl/rand.h> 
+#include <openssl/hmac.h>
+#include <openssl/buffer.h>
+
 #define BUF_SIZE 4096
 
 typedef enum { false, true } boolean;
+
+struct ctr_state {
+	unsigned char ivec[AES_BLOCK_SIZE];  
+	unsigned int num; 
+	unsigned char ecount[AES_BLOCK_SIZE]; 
+}; 
+
+
+AES_KEY key; 
+
+int bytes_read, bytes_written;   
+unsigned char indata[AES_BLOCK_SIZE]; 
+unsigned char outdata[AES_BLOCK_SIZE];
+unsigned char iv[AES_BLOCK_SIZE]; //16?
+struct ctr_state state;
+
+
+int init_ctr(struct ctr_state *state, const unsigned char iv[16]) {
+	/*O aes_ctr128_encrypt exige um 'num' e um 'ecount' definidos a zero na primeira chamada. */
+	state->num = 0;
+	memset(state->ecount, 0, AES_BLOCK_SIZE); //16?
+	
+	/* Inicilaização do contador no 'ivec' a 0 */
+	memset(state->ecount, 0, 16); //16?
+	
+	/* Copia o IV para o 'ivec' */
+	memcpy(state->ivec, iv, 16); //16?
+}
+
+char* TextEncrypt(const unsigned char* enc_key, char * text) {
+	//Cria vector com valores aleatórios
+	if(!RAND_bytes(iv, AES_BLOCK_SIZE)) {
+		printf("Erro: Não foi possivel criar bytes aleatorios.\n");
+		exit(1);
+	}
+	
+	//Inicializa a chave de encriptação
+	if (AES_set_encrypt_key(enc_key, 128, &key) < 0) {
+		fprintf(stderr, "Nao foi possível definir chave de encriptacao.");
+		exit(1);
+	}
+	
+	init_ctr(&state, iv); //Chamada do contador
+	
+	bytes_read = strlen(text);
+	
+	AES_set_encrypt_key(enc_key, 128, &key);	
+	
+	//Encripta em blocos de 16 bytes e guarda o texto cifrado numa string -> outdata
+	AES_ctr128_encrypt(text, outdata, bytes_read, &key, state.ivec, state.ecount, &state.num);
+	
+	fflush(stdin);
+	return outdata;
+}
+
+char* TextDecrypt(const unsigned char* enc_key, unsigned char* cypherText) {
+	//Inicialização da Chave de encriptação 
+	if (AES_set_encrypt_key(enc_key, 128, &key) < 0) {
+		fprintf(stderr, "Nao foi possível definir chave de decodificacao.");
+		exit(1);
+	}
+	
+	init_ctr(&state, iv);//Chamada do contador
+	
+	//Encripta em blocos de 16 bytes e escreve o ficheiro output.txt cifrado
+	bytes_read = strlen(cypherText);
+	
+	AES_set_encrypt_key(enc_key, 128, &key);
+	
+	AES_ctr128_encrypt(cypherText, outdata, bytes_read, &key, state.ivec, state.ecount, &state.num);
+	
+	fflush(stdin);
+	return outdata;
+}
 
 int main(int argc, char *argv[]) {
 	int opt = 0;
@@ -141,7 +220,7 @@ int main(int argc, char *argv[]) {
 				if (n < BUF_SIZE)
 					break;
 			};
-			
+			//printf("n for comm_fd: %d\n", n);
 			//fputs("about to read from ssh_fd\n", stderr);
 			while ((n = read(ssh_fd, buffer, BUF_SIZE)) > 0) {
 				//fputs("ssh_fd -> comm_fd\n", stderr);
@@ -149,7 +228,18 @@ int main(int argc, char *argv[]) {
 				if (n < BUF_SIZE)
 					break;
 			}
+			//printf("n for ssh_fd: %d\n", n);
 			
+			/*int error = 0;
+			socklen_t len = sizeof(error);
+			int retval = getsockopt(comm_fd, SOL_SOCKET, SO_ERROR, &error, &len);
+			if (retval != 0) {
+				printf("Ahhhhh!\n");
+			}
+			retval = getsockopt(ssh_fd, SOL_SOCKET, SO_ERROR, &error, &len);
+			if (retval != 0) {
+				printf("Ahhhhh!\n");
+			}*/
 			//fputs("finished one round!\n", stderr);
 		}
 	} else {
