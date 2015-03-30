@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
 			printf("read comm_fd flag error!\n");
 			return 0;
 		}
-		fcntl(comm_fd, F_SETFL, flags & ~O_NONBLOCK);
+		fcntl(comm_fd, F_SETFL, flags | O_NONBLOCK);
 		
 		flags = fcntl(ssh_fd, F_GETFL);
 		if (flags == -1) {
@@ -132,23 +132,23 @@ int main(int argc, char *argv[]) {
 		
 		while (1) {
 			//bzero(buffer, BUF_SIZE);
-			//fputs("about to take input\n", stderr);
+			//fputs("about to read from comm_fd\n", stderr);
 			while ((n = read(comm_fd, buffer, BUF_SIZE)) > 0) {
-				int m = n;
-				fputs("remote -> local\n", stderr);
+				//int m = n;
+				//fputs("comm_fd -> ssh_fd\n", stderr);
 				write(ssh_fd, buffer, n);
-				fputs("read from local\n", stderr);
-				while ((n = read(ssh_fd, buffer, BUF_SIZE)) > 0) {
-					fputs("write to remote\n", stderr);
-					write(comm_fd, buffer, n);
-					if (n < BUF_SIZE)
-						break;
-				}
-				
 				//write(comm_fd, buffer, n);
-				if (m < BUF_SIZE)
+				if (n < BUF_SIZE)
 					break;
 			};
+			
+			//fputs("about to read from ssh_fd\n", stderr);
+			while ((n = read(ssh_fd, buffer, BUF_SIZE)) > 0) {
+				//fputs("ssh_fd -> comm_fd\n", stderr);
+				write(comm_fd, buffer, n);
+				if (n < BUF_SIZE)
+					break;
+			}
 			
 			//fputs("finished one round!\n", stderr);
 		}
