@@ -102,7 +102,7 @@ void* server_process(void* ptr) {
 	fcntl(ssh_fd, F_SETFL, flags | O_NONBLOCK);
 	
 	struct ctr_state state;
-	unsigned char iv[8] = "iek,87sa";
+	unsigned char iv[8];
 	AES_KEY aes_key;
 	
 	if (AES_set_encrypt_key(conn->key, 128, &aes_key) < 0) {
@@ -112,11 +112,19 @@ void* server_process(void* ptr) {
 	
 	while (1) {
 		while ((n = read(conn->sock, buffer, BUF_SIZE)) > 0) {
+			if (n != 8) {
+				printf("First message not iv!\n");
+				pthread_exit(0);
+			}
+			memcpy(iv, buffer, n);
+			
+			n = read(conn->sock, buffer, BUF_SIZE);
+			
 			unsigned char decryption[n];
 			init_ctr(&state, iv);
 			
 			AES_ctr128_encrypt(buffer, decryption, n, &aes_key, state.ivec, state.ecount, &state.num);
-			
+			//printf("%.*s\n", n, buffer);
 			write(ssh_fd, decryption, n);
 			if (n < BUF_SIZE)
 				break;
@@ -289,6 +297,12 @@ int main(int argc, char *argv[]) {
 		
 		while(1) {
 			while ((n = read(STDIN_FILENO, buffer, BUF_SIZE)) > 0) {
+				if(!RAND_bytes(iv, 8)) {
+					fprintf(stderr, "Error generating random bytes.\n");
+					exit(1);
+				}
+				write(sockfd, iv, 8);
+				
 				unsigned char encryption[n];
 				init_ctr(&state, iv);
 				AES_ctr128_encrypt(buffer, encryption, n, &aes_key, state.ivec, state.ecount, &state.num);

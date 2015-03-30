@@ -32,7 +32,7 @@ int init_ctr(struct ctr_state *state, const unsigned char iv[8]) {
 int main(int argc, char *argv[])
 {
 	struct ctr_state state;
-	unsigned char iv[8] = "iek,87sa";
+	unsigned char iv[8];
 	AES_KEY aes_key;
 	unsigned const char *key = "abcdefgh87654321";
 	
@@ -42,10 +42,10 @@ int main(int argc, char *argv[])
 	unsigned char encryption[strlen(plaintext)];
 	unsigned char decryption[strlen(plaintext)];
 	
-	/*if(!RAND_bytes(iv, 8)) {
+	if(!RAND_bytes(iv, 8)) {
 		printf("Error generating random bytes.\n");
 		exit(1);
-	}*/
+	}
 	
 	init_ctr(&state, iv);
 	
