@@ -57,11 +57,11 @@ int main(int argc, char *argv[])
 	printf("Clean text:     %s\n", plaintext);
 	
 	AES_ctr128_encrypt(plaintext, encryption, strlen(plaintext), &aes_key, state.ivec, state.ecount, &state.num);
-	printf("Chipered text:  %.*s\n", strlen(plaintext), encryption);
+	printf("Chipered text:  %.*s\n", (int)strlen(plaintext), encryption);
 	
 	init_ctr(&state, iv);
 	AES_ctr128_encrypt(encryption, decryption, strlen(plaintext), &aes_key, state.ivec, state.ecount, &state.num);
-	printf("Decrypted text: %.*s\n", strlen(plaintext), decryption);
+	printf("Decrypted text: %.*s\n", (int)strlen(plaintext), decryption);
 	
 	return 0;
 }
