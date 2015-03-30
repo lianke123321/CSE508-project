@@ -108,16 +108,49 @@ int main(int argc, char *argv[]) {
 		
 		comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
 		
+		if (connect(ssh_fd, (struct sockaddr *)&sshaddr, sizeof(sshaddr)) == -1) {
+			printf("Connection to ssh failed!\n");
+			return 0;
+		} else {
+			printf("Connection to ssh established!\n");
+		}
+		
+		//fputs("about to change blocking mode\n", stderr);
+		int flags = fcntl(comm_fd, F_GETFL);
+		if (flags == -1) {
+			printf("read comm_fd flag error!\n");
+			return 0;
+		}
+		fcntl(comm_fd, F_SETFL, flags & ~O_NONBLOCK);
+		
+		flags = fcntl(ssh_fd, F_GETFL);
+		if (flags == -1) {
+			printf("read ssh_fd flag error!\n");
+			return 0;
+		}
+		fcntl(ssh_fd, F_SETFL, flags | O_NONBLOCK);
+		
 		while (1) {
 			//bzero(buffer, BUF_SIZE);
+			//fputs("about to take input\n", stderr);
 			while ((n = read(comm_fd, buffer, BUF_SIZE)) > 0) {
-				printf("Echoing back - %s",buffer);
-				write(comm_fd, buffer, strlen(buffer)+1);
-				if (n < BUF_SIZE)
+				int m = n;
+				fputs("remote -> local\n", stderr);
+				write(ssh_fd, buffer, n);
+				fputs("read from local\n", stderr);
+				while ((n = read(ssh_fd, buffer, BUF_SIZE)) > 0) {
+					fputs("write to remote\n", stderr);
+					write(comm_fd, buffer, n);
+					if (n < BUF_SIZE)
+						break;
+				}
+				
+				//write(comm_fd, buffer, n);
+				if (m < BUF_SIZE)
 					break;
 			};
-			//printf("Echoing back - %s",buffer);
-			//write(comm_fd, buffer, strlen(buffer)+1);
+			
+			//fputs("finished one round!\n", stderr);
 		}
 	} else {
 		// pbproxy running in client mode
