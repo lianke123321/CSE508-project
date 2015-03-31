@@ -1,1 +1,32 @@
-sudo apt-get install libssl-dev
+I have implemented all required functions of homework 3, including but not limited to proxy, multiconnection support, encryption and description using dynamic IV.
+
+In order to compile you have to install libssl first:
+	$ sudo apt-get install libssl-dev
+
+After installing, you could use "make" to compile my code.
+
+How to use it: I tested my program using three linux machines. First I only use two machines, let the first one connect the sshd of the second machine through my proxy.
+	On the first machine, I execute following command:
+		$ ssh -o "ProxyCommand ./pbproxy.o -k mykey 130.245.30.69 12345" student@localhost
+	On the second machine, I execute following command:
+		$ ./pbproxy.o -l 12345 -k mykey localhost 130
+	If using this command on the second machine, and change "student" to "ubuntu" in the first comand, I could connect to another sshd on the third machine of mine:
+		$ ./pbproxy.o -l 12345 -k mykey replay-s.meddle.mobi 22
+
+I am using port 130 because sshd of my second machine is listening port 130 instead of port 22.
+
+I wrote a lot of code to test function independently, but I deleted all of them except test_ssl.c.
+
+How does my code work?
+
+At client mode, I use a while(1) loop to try reading from stdin and socket. Be aware that I set stdin and socket to non-blocking mode to avoid blocking forever. If I received something from stdin, I generate a 8-byte iv, encrypt the data using key and iv, then put iv and encrypted data into another variable then send them together.
+If I received something from socket, simply write the original data to stdout.
+
+At server mode, I wrote a function for thread called server_process. First I start to listen to port specified in argument(10 concurrent connections at most), then start to call accept() in a while(1) loop. If I got a new connection, start a new thread to handle it.
+In the thread, I first create a tcp connection with destination and port specified in the arguments, then I try reading from incoming socket and the socket I created in a while(1) loop. I also set those two sockets to non-blocking mode, similar to client mode.
+If I received something from incoming socket, take the first 8 bytes as iv, then decrypt the rest data using that iv. Then write decrypted data to another socket.
+If I received something from the socket I created, simply write the original data to the first socket.
+
+I also have a lot of error checking. My server thread is able to close connection and exit when a client exit.
+
+This homework is not that easy but really interesting! And I learned a lot during coding :)
