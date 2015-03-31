@@ -19,12 +19,12 @@ I wrote a lot of code to test functions and make experiment independently, but I
 
 How does my code work?
 
-At client mode, I use a while(1) loop to try reading from stdin and socket. Be aware that I set stdin and socket to non-blocking mode to avoid blocking forever. If I received something from stdin, I generate a 8-byte iv, encrypt the data using key and iv, then put iv and encrypted data into another variable then send them together.
+At client mode, I use a while(1) loop to try reading from stdin and socket. Be aware that I set stdin and socket to non-blocking mode to avoid blocking forever. If I received something from stdin, I generate a 8-byte iv, encrypt the data using key and iv, then put iv and encrypted data into another memory block then send them together.
 If I received something from socket, simply write the original data to stdout.
 
 At server mode, I wrote a function for thread called server_process. First I start to listen to port specified in argument(10 concurrent connections at most), then start to call accept() in a while(1) loop. If I got a new connection, start a new thread to handle it.
 In the thread, I first create a tcp connection with destination and port specified in the arguments, then I try reading from incoming socket and the socket I created in a while(1) loop. I also set those two sockets to non-blocking mode, similar to client mode.
-If I received something from incoming socket, take the first 8 bytes as iv, then decrypt the rest data using that iv. Then write decrypted data to another socket.
+If I received something from incoming socket, I take the first 8 bytes as iv, then decrypt the rest data using that iv. Then write decrypted data to another socket.
 If I received something from the socket I created, simply write the original data to the first socket.
 
 I also have a lot of error checking. My server thread is able to close connection and exit when a client exit.
