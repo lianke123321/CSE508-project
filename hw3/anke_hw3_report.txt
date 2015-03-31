@@ -10,12 +10,12 @@ How to use it: I tested my program using three linux machines. First I only use 
 		$ ssh -o "ProxyCommand ./pbproxy.o -k mykey 130.245.30.69 12345" student@localhost
 	On the second machine, I execute following command:
 		$ ./pbproxy.o -l 12345 -k mykey localhost 130
-	If using this command on the second machine, and change "student" to "ubuntu" in the first comand, I could connect to another sshd on the third machine of mine:
+	If using following command on the second machine, and change "student" to "ubuntu" in the first comand, I could connect to another sshd on the third machine of mine:
 		$ ./pbproxy.o -l 12345 -k mykey replay-s.meddle.mobi 22
 
 I am using port 130 because sshd of my second machine is listening port 130 instead of port 22.
 
-I wrote a lot of code to test function independently, but I deleted all of them except test_ssl.c.
+I wrote a lot of code to test functions and make experiment independently, but I deleted all of them except test_ssl.c.
 
 How does my code work?
 

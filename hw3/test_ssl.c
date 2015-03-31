@@ -8,7 +8,6 @@
 #include <math.h>
 
 // Code example uses partail code from: http://stackoverflow.com/questions/3141860/aes-ctr-256-encryption-mode-of-operation-on-openssl
-// Mostly in the ctr_ state, and init_ctr functions. 
 
 struct ctr_state {
 	unsigned char ivec[AES_BLOCK_SIZE];  
