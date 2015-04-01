@@ -308,7 +308,7 @@ int main(int argc, char *argv[]) {
 		fcntl(sockfd, F_SETFL, O_NONBLOCK);
 		
 		struct ctr_state state;
-		unsigned char iv[8] = "iek,87sa";
+		unsigned char iv[8];
 		AES_KEY aes_key;
 		
 		if (AES_set_encrypt_key(key, 128, &aes_key) < 0) {
@@ -343,7 +343,7 @@ int main(int argc, char *argv[]) {
 					close(sockfd);
 					return 0;
 				}
-				unsigned char iv[8];
+				
 				memcpy(iv, buffer, 8);
 				
 				unsigned char decryption[n-8];
