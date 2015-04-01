@@ -107,6 +107,7 @@ void* server_process(void* ptr) {
 	
 	struct ctr_state state;
 	AES_KEY aes_key;
+	unsigned char iv[8];
 	
 	if (AES_set_encrypt_key(conn->key, 128, &aes_key) < 0) {
 		fprintf(stderr, "Set encryption key error!\n");
@@ -122,7 +123,7 @@ void* server_process(void* ptr) {
 				free(conn);
 				pthread_exit(0);
 			}
-			unsigned char iv[8];
+			
 			memcpy(iv, buffer, 8);
 			
 			unsigned char decryption[n-8];
@@ -136,8 +137,23 @@ void* server_process(void* ptr) {
 		};
 		
 		while ((n = read(ssh_fd, buffer, BUF_SIZE)) >= 0) {
-			if (n > 0)
-				write(conn->sock, buffer, n);
+			if (n > 0) {
+				if(!RAND_bytes(iv, 8)) {
+					fprintf(stderr, "Error generating random bytes.\n");
+					exit(1);
+				}
+				char *tmp = (char*)malloc(n + 8);
+				memcpy(tmp, iv, 8);
+				
+				unsigned char encryption[n];
+				init_ctr(&state, iv);
+				AES_ctr128_encrypt(buffer, encryption, n, &aes_key, state.ivec, state.ecount, &state.num);
+				memcpy(tmp+8, encryption, n);
+				
+				write(conn->sock, tmp, n + 8);
+				
+				free(tmp);
+			}
 			
 			if (ssh_done == false && n == 0)
 				ssh_done = true;
@@ -322,7 +338,20 @@ int main(int argc, char *argv[]) {
 			}
 			
 			while ((n = read(sockfd, buffer, BUF_SIZE)) > 0) {
-				write(STDOUT_FILENO, buffer, n);
+				if (n < 8) {
+					fprintf(stderr, "Packet length smaller than 8!\n");
+					close(sockfd);
+					return 0;
+				}
+				unsigned char iv[8];
+				memcpy(iv, buffer, 8);
+				
+				unsigned char decryption[n-8];
+				init_ctr(&state, iv);
+				
+				AES_ctr128_encrypt(buffer+8, decryption, n-8, &aes_key, state.ivec, state.ecount, &state.num);
+				
+				write(STDOUT_FILENO, decryption, n-8);
 				if (n < BUF_SIZE)
 					break;
 			}
