@@ -1,0 +1,107 @@
+CSE508: Network Security (PhD Section), Spring 2015
+
+Homework 4: Man-on-the-Side Attacks
+-------------------------------------------------------------------------------
+
+Submission deadline: May 1st, 2015 11:59pm EDT
+Submission through email to: mikepo+CSE508HW4@cs.stonybrook.edu
+
+
+In this assignment you will develop 1) a Man-on-the-Side (MotS) attack injector
+and 2) a passive MotS attack detector.
+
+Part 1:
+
+The MotS injector you are going to develop, named 'quantuminject', will capture
+the traffic from a network interface in promiscuous mode, and attempt to inject
+spoofed responses to selected client requests towards TCP services, in a way
+similar to the Airpwn tool.
+
+Your program should conform to the following specification:
+
+quantuminject [-i interface] [-r regexp] [-d datafile] expression
+
+-i  Listen on network device <interface> (e.g., eth0). If not specified,
+    quantuminject should select a default interface to listen on. The same
+    interface should be used for packet injection.
+
+-r  Use regular expression <regexp> to match the request packets for which a
+    response will be spoofed.
+
+-d  Read the raw data that will be used as the TCP payload of the spoofed
+    response packet from <datafile>
+
+<expression> is a BPF filter that specifies a subset of the traffic to be
+monitored. This option is useful for targeting a single IP address, a single
+service, etc.
+
+You are requested to implement support only for unencrypted TCP traffic. You
+can ignore WAP, UDP, and any other non-TCP, non-plaintext packets. Pay
+attention to the time needed for generating the spoofed response: it should be
+fast enough for the injected packet to reach the victim sooner than the
+server's actual response. The spoofed packet and content should also be valid
+according to the TCP/IP semantics, and should be accepted and processed
+normally by the victim as part of the existing targeted TCP connection.
+
+See Airpwn's documentation and source code ('conf' and 'content' dirs) for
+examples of the kind of fake responses you can play with:
+http://airpwn.sourceforge.net/
+
+Part 2:
+
+The MotS attack detector you are going to develop, named 'quantumdetect', will
+capture the traffic from a network interface in promiscuous mode, and detect
+MotS attack attempts. Detection will be based on identifying duplicate packets
+towards the same destination that contain different TCP payloads, i.e., the
+observation of the attacker's spoofed response followed by the server's actual
+response. You should make every effort to avoid false positives, e.g., due to
+TCP retransmissions.
+
+Your program should conform to the following specification:
+
+quantumdetect [-i interface] [-r file] expression
+
+-i  Listen on network device <interface> (e.g., eth0). If not specified, the
+    program should select a default interface to listen on.
+
+-r  Read packets from <file> (tcpdump format). Useful for detecting MotS attacks
+    in existing network traces.
+
+<expression> is a BPF filter that specifies a subset of the traffic to be
+monitored.
+
+Once an attack is detected, quantumdetect should print to stdout a detailed
+alert containing a printout of both the spoofed and legitimate packets.
+
+
+For both quantuminject and quantumdetect, feel free to use parts or build upon
+the code of your 'mydump' tool from Homework 2. You are free to pick any
+programming language you like for both, as long as it is easy to install and
+configure in a modern Linux system (e.g., C, C++, python, ruby).
+
+
+What to submit:
+
+A tarball with:
+- all required source code files, an appropriate Makefile, and instructions
+  for installing any library dependencies/packages (if needed)
+- a pcap trace of one or more successful attack instances generated using your
+  quantuminject tool
+- a short report (.txt file is fine) with a brief description of your programs,
+  the strategy you followed for MotS attack detection, and the output of your
+  quantumdetect tool when fed with the above attack trace
+
+
+Hints:
+
+1) You may find some of the following libraries/tools useful: libnet, scapy,
+dpkt, libdnet.
+
+2) Mind your spoofed packet's header fields and checksums!
+
+3) Think about what fields should remain the same or may differ between the
+spoofed and actual response packets.
+
+4) An easy way to test your tools is to have a victim guest VM, and run
+quantuminject and quantumdetect on the host (or another VM that can observe
+the victim's traffic).
