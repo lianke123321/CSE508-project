@@ -9,6 +9,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <time.h>
 
@@ -49,47 +51,16 @@ struct sniff_ethernet
 	u_short ether_type;					 /* IP? ARP? RARP? etc */
 };
 
-/* IP header */
-struct sniff_ip
+/* 
+    96 bit (12 bytes) pseudo header needed for tcp header checksum calculation 
+*/
+struct pseudo_header
 {
-	u_char  ip_hl:4, ip_v:4;				 /* version << 4 | header length >> 2 */
-	u_char  ip_tos;				 /* type of service */
-	u_short ip_len;				 /* total length */
-	u_short ip_id;				  /* identification */
-	u_short ip_off;				 /* fragment offset field */
-#define IP_RF 0x8000			/* reserved fragment flag */
-#define IP_DF 0x4000			/* dont fragment flag */
-#define IP_MF 0x2000			/* more fragments flag */
-#define IP_OFFMASK 0x1fff	   /* mask for fragmenting bits */
-	u_char  ip_ttl;				 /* time to live */
-	u_char  ip_p;				   /* protocol */
-	u_short ip_sum;				 /* checksum */
-	struct  in_addr ip_src,ip_dst;  /* source and dest address */
-};
-
-/* TCP header */
-typedef u_int tcp_seq;
-
-struct sniff_tcp
-{
-	u_short th_sport;			   /* source port */
-	u_short th_dport;			   /* destination port */
-	tcp_seq th_seq;				 /* sequence number */
-	tcp_seq th_ack;				 /* acknowledgement number */
-	u_char  th_x2:4, th_off:4;			   /* data offset, rsvd */
-	u_char  th_flags;
-#define TH_FIN  0x01
-#define TH_SYN  0x02
-#define TH_RST  0x04
-#define TH_PUSH 0x08
-#define TH_ACK  0x10
-#define TH_URG  0x20
-#define TH_ECE  0x40
-#define TH_CWR  0x80
-#define TH_FLAGS		(TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG|TH_ECE|TH_CWR)
-	u_short th_win;				 /* window */
-	u_short th_sum;				 /* checksum */
-	u_short th_urp;				 /* urgent pointer */
+	u_int32_t source_address;
+	u_int32_t dest_address;
+	u_int8_t placeholder;
+	u_int8_t protocol;
+	u_int16_t tcp_length;
 };
 
 // for generating checksum of packet
@@ -99,46 +70,72 @@ unsigned short csum (unsigned short *buf, int nwords) {
 		sum += *buf++;
 	sum = (sum >> 16) + (sum & 0xffff);
 	sum += (sum >> 16);
-	return ~sum;
+	return (unsigned short)(~sum);
 }
 
 int send_spoof_packet () {
 	int raw_fd = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
-	char datagram[4096];
-	struct sniff_ip *ip_header = (struct sniff_ip *)datagram;
-	struct sniff_tcp *tcp_header = (struct sniff_tcp *)(datagram + sizeof(struct sniff_ip));
+	if (raw_fd < 0) {
+		printf("Creating raw socket error, exiting...");
+		return 0;
+	}
+	char datagram[8192];
+	struct ip *ip_header = (struct ip *)datagram;
+	struct tcphdr *tcp_header = (struct tcphdr *)(datagram + sizeof(struct ip));
+	char *payload = datagram + sizeof(struct ip) + sizeof(struct tcphdr);
+	char *pseudogram;
 	struct sockaddr_in sin;
+	struct pseudo_header psh;
+	
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons (25);
 	sin.sin_addr.s_addr = inet_addr ("10.0.1.6");
 	
-	memset(datagram, 0, 4096);
+	memset(datagram, 0, 8192);
+	
+	memcpy(payload, spoof_payload, strlen(spoof_payload));
 	
 	/* we'll now fill in the ip/tcp header values, see above for explanations */
-	ip_header->ip_hl = 5;
+	ip_header->ip_hl = sizeof*ip_header >> 2;
 	ip_header->ip_v = 4;
 	ip_header->ip_tos = 0;
-	ip_header->ip_len = sizeof(struct sniff_ip) + sizeof(struct sniff_tcp);	/* no payload */
-	ip_header->ip_id = htonl (54321);	/* the value doesn't matter here */
-	ip_header->ip_off = 0;
+	ip_header->ip_len = sizeof(struct ip) + sizeof(struct tcphdr) + strlen(spoof_payload);	/* no payload */
+	ip_header->ip_id = htons (4321);	/* the value doesn't matter here */
+	ip_header->ip_off = htons(0);
 	ip_header->ip_ttl = 255;
 	ip_header->ip_p = 6;
-	ip_header->ip_sum = 0;		/* set it to 0 before computing the actual checksum later */
+	ip_header->ip_sum = 0;	/* set it to 0 before computing the actual checksum later */
 	ip_header->ip_src.s_addr = inet_addr ("8.8.8.8");/* SYN's can be blindly spoofed */
 	ip_header->ip_dst.s_addr = sin.sin_addr.s_addr;
+	
+	ip_header->ip_sum = csum ((unsigned short *)datagram, ip_header->ip_len);
+	
 	tcp_header->th_sport = htons (1234);	/* arbitrary port */
-	tcp_header->th_dport = htons (25);
+	tcp_header->th_dport = htons (80);
 	tcp_header->th_seq = random();/* in a SYN packet, the sequence is a random */
 	tcp_header->th_ack = 0;/* number, and the ack sequence is 0 in the 1st packet */
 	tcp_header->th_x2 = 0;
-	tcp_header->th_off = 0;		/* first and only tcp segment */
+	tcp_header->th_off = 5;		/* first and only tcp segment */
 	tcp_header->th_flags = TH_SYN;	/* initial connection request */
 	tcp_header->th_win = htonl (65535);	/* maximum allowed window size */
 	tcp_header->th_sum = 0;/* if you set a checksum to zero, your kernel's IP stack
 		      should fill in the correct checksum during transmission */
 	tcp_header->th_urp = 0;
 	
-	ip_header->ip_sum = csum ((unsigned short *)datagram, ip_header->ip_len >> 1);
+	//Now the TCP checksum
+	psh.source_address = ip_header->ip_src.s_addr;
+	psh.dest_address = sin.sin_addr.s_addr;
+	psh.placeholder = 0;
+	psh.protocol = IPPROTO_TCP;
+	psh.tcp_length = htons(sizeof(struct tcphdr) + strlen(payload) );
+	
+	int psize = sizeof(struct pseudo_header) + sizeof(struct tcphdr) + strlen(payload);
+	pseudogram = malloc(psize);
+	
+	memcpy(pseudogram, (char*)&psh, sizeof(struct pseudo_header));
+	memcpy(pseudogram + sizeof(struct pseudo_header), tcp_header, sizeof(struct tcphdr) + strlen(payload));
+	
+	tcp_header->th_sum = csum((unsigned short *)pseudogram, psize);
 	
 /* finally, it is very advisable to do a IP_HDRINCL call, to make sure
    that the kernel knows the header is included in the data, and doesn't
@@ -146,16 +143,12 @@ int send_spoof_packet () {
 	
 	/* lets do it the ugly way.. */
 	int one = 1;
-	const int *val = &one;
-	if (setsockopt (raw_fd, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0)
+	if (setsockopt(raw_fd, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0) {
 		printf ("Warning: Cannot set HDRINCL!\n");
+		return 0;
+	}
 	
-	if (sendto(raw_fd,		/* our socket */
-		datagram,	/* the buffer containing headers and data */
-		ip_header->ip_len,	/* total length of our datagram */
-		0,		/* routing flags, normally always 0 */
-		(struct sockaddr *) &sin,	/* socket addr, just like in */
-		sizeof (sin)) < 0) {		/* a normal send() */
+	if (sendto(raw_fd, datagram, ip_header->ip_len, 0, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 		//printf ("Send spoof packet error\n");
 		close(raw_fd);
 		return 0;
@@ -170,8 +163,8 @@ int send_spoof_packet () {
 void handle_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
 	/* declare pointers to packet headers */
 	const struct sniff_ethernet *ethernet;
-	const struct sniff_ip *ip;
-	const struct sniff_tcp *tcp;
+	const struct ip *ip;
+	const struct tcphdr *tcp;
 	const char *payload;
 	
 	int size_ip;
@@ -185,7 +178,7 @@ void handle_packet(u_char *args, const struct pcap_pkthdr *header, const u_char 
 		//printf("regexp: %s\n", args);
 		//printf("IPv4 ");
 		// extract ip header
-		ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
+		ip = (struct ip*)(packet + SIZE_ETHERNET);
 		size_ip = ip->ip_hl*4;
 		if (size_ip < 20) {
 			printf("* Invalid IP header length: %u bytes\n", size_ip);
@@ -195,7 +188,7 @@ void handle_packet(u_char *args, const struct pcap_pkthdr *header, const u_char 
 		// for tcp packet
 		if (ip->ip_p == IPPROTO_TCP) {
 			//printf("TCP ");
-			tcp = (struct sniff_tcp *)(packet + SIZE_ETHERNET + size_ip);
+			tcp = (struct tcphdr *)(packet + SIZE_ETHERNET + size_ip);
 			size_tcp = tcp->th_off * 4;
 			if (size_tcp < 20) {
 				printf("* Invalid TCP header length: %u bytes\n", size_tcp);
