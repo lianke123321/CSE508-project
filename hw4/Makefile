@@ -3,10 +3,10 @@
 all: clean quantuminject quantumdetect
 
 quantuminject: quantuminject.c
-	gcc -g quantuminject.c -o quantuminject.o -lpthread
+	gcc -g quantuminject.c -lpcap -o quantuminject.o
 
 quantumdetect: quantumdetect.c
-	gcc -g quantumdetect.c -o quantumdetect.o -lpthread
+	gcc -g quantumdetect.c -lpcap -o quantumdetect.o
 
 clean:
 	rm -f *~ *.o *.out
