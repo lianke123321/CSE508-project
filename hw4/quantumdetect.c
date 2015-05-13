@@ -14,6 +14,80 @@
 #include <arpa/inet.h>
 #include <time.h>
 
+#define ETHER_ADDR_LEN 6
+#define SIZE_ETHERNET 14
+#define ETHERTYPE_IPV4 0x0800
+
+/* Ethernet header */
+struct sniff_ethernet
+{
+	u_char  ether_dhost[ETHER_ADDR_LEN];	/* destination host address */
+	u_char  ether_shost[ETHER_ADDR_LEN];	/* source host address */
+	u_short ether_type;					 /* IP? ARP? RARP? etc */
+};
+
+// handle each packet and detecting MotS atteck
+void handle_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
+	/* declare pointers to packet headers */
+	//printf("Got packet!\n");
+	const struct sniff_ethernet *ethernet;
+	const struct ip *ip;
+	const struct tcphdr *tcp;
+	const char *payload;
+	
+	int size_ip;
+	int size_tcp;
+	int size_payload;
+	
+	// extract ethernet header
+	ethernet = (struct sniff_ethernet*)(packet);
+	
+	if (ntohs(ethernet->ether_type) == ETHERTYPE_IPV4) {
+		//printf("regexp: %s\n", args);
+		printf("IPv4 ");
+		// extract ip header
+		ip = (struct ip*)(packet + SIZE_ETHERNET);
+		size_ip = ip->ip_hl * 4;
+		if (size_ip < 20) {
+			printf("* Invalid IP header length: %u bytes\n", size_ip);
+			return;
+		}
+		
+		// for tcp packet
+		if (ip->ip_p == IPPROTO_TCP) {
+			printf("TCP ");
+			tcp = (struct tcphdr *)(packet + SIZE_ETHERNET + size_ip);
+			size_tcp = tcp->th_off * 4;
+			if (size_tcp < 20) {
+				printf("* Invalid TCP header length: %u bytes\n", size_tcp);
+				return;
+			}
+			printf("%s.%d -> ", inet_ntoa(ip->ip_src), ntohs(tcp->th_sport));
+			printf("%s.%d ", inet_ntoa(ip->ip_dst), ntohs(tcp->th_dport));
+			printf("len %d ", ntohs(ip->ip_len));
+			
+			// extract payload
+			payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
+			size_payload = ntohs(ip->ip_len) - (size_ip + size_tcp);
+			
+			// print payload
+			if (size_payload > 0) {
+				printf("Payload (%d bytes)\n", size_payload);
+			} else {
+				printf("No payload\n");
+				return;
+			}
+		} else {
+			printf("NON-TCP packet\n");
+			return;
+		}
+		
+	} else {
+		printf("NON-IPv4 packet\n");
+		return;
+	}
+}
+
 int main(int argc, char *argv[]) {
 	int opt = 0;
 	char *interface = NULL;
@@ -144,7 +218,7 @@ int main(int argc, char *argv[]) {
 	}
 	
 	// now we start sniffing!
-	//pcap_loop(handle, cnt, handle_packet, regexp);
+	pcap_loop(handle, cnt, handle_packet, NULL);
 	
 	//pcap_freecode(&filter);
 	pcap_close(handle);

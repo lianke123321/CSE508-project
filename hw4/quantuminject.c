@@ -17,7 +17,6 @@
 
 #define ETHER_ADDR_LEN 6
 #define SIZE_ETHERNET 14
-#define ETHERTYPE_ARP 0x0806
 #define ETHERTYPE_IPV4 0x0800
 
 typedef enum { false, true } boolean;
@@ -173,7 +172,7 @@ int send_spoof_packet (unsigned long src_ip, u_short src_port, unsigned long dst
 	}
 }
 
-// display info for each packet
+// handle each packet and possibly inject spoof packet
 void handle_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
 	/* declare pointers to packet headers */
 	//printf("Got packet!\n");
