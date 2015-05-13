@@ -1,2 +1,5 @@
 To compile the program properly, you need to install pcre library first:
 	$ sudo apt-get install libpcre3-dev
+
+quantuminject usage:
+	$ sudo ./quantuminject.o -i eth0 -r GET -d payload "tcp port http"
