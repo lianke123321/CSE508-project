@@ -1,0 +1,2 @@
+To compile the program properly, you need to install pcre library first:
+	$ sudo apt-get install libpcre3-dev

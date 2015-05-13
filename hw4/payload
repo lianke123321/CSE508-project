@@ -1,1 +1,10 @@
-Whatever
+HTTP/1.1 200 OK
+Connection: close
+Content-Type: text/html
+
+<html>
+<head>
+<title>Hi there</title>
+</head>
+<body>You are hacked</body>
+</html>

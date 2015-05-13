@@ -3,7 +3,7 @@
 all: clean quantuminject quantumdetect myping
 
 quantuminject: quantuminject.c
-	gcc -g quantuminject.c -lpcap -o quantuminject.o
+	gcc -g quantuminject.c -lpcap -lpcre -o quantuminject.o
 
 quantumdetect: quantumdetect.c
 	gcc -g quantumdetect.c -lpcap -o quantumdetect.o
