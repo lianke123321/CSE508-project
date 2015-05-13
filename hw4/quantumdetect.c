@@ -43,7 +43,6 @@ void handle_packet(u_char *args, const struct pcap_pkthdr *header, const u_char 
 	ethernet = (struct sniff_ethernet*)(packet);
 	
 	if (ntohs(ethernet->ether_type) == ETHERTYPE_IPV4) {
-		//printf("regexp: %s\n", args);
 		printf("IPv4 ");
 		// extract ip header
 		ip = (struct ip*)(packet + SIZE_ETHERNET);
