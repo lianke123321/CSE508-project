@@ -1,0 +1,44 @@
+I have implemented all required functions of homework 4, including a quantum injector written in C, and a quantum detector written in Python.
+
+Please refer to README for installing any dependencies.
+
+Quantum injector:
+	For this program, I used the raw socket to construct and inject packet. And I used pcre library to do the regular expression pattern matching.
+	This injector is based on mydump.c in hw2. I first imported the regex library, to support regular expression, then I wrote a function to construct and send spoof packet, changed my call back packet handling function to call this new function at the right time.
+	Setting the value of each field in IP and TCP header took me A LOT OF time. I think the most important thing is to set the right seq and ack value. The seq value should be the ack value of captured packet, and the ack value should be the seq calue plus the length of TCP payload of the captured packet.
+	I also spent a lot of time to find out that I forgot to translate the byte order, which caused my spoof packet to have a wrong ack value.
+	I put two payload files in my folder, one of them is a very simple web page, and another is a redirect http reply, which will redirect the user's browser to another website. My injector is not limited to http, and I am just giving example here.
+	
+	This program conforms to the argument format from the requirement.
+	
+	An example of using it:
+	1. First running the injector on a linux system, using the following command:
+		$ sudo ./quantuminject.o -i eth0 -r GET -d payload_simple_page "tcp port http"
+	2. Open a browser, I recommend chrome in incognito mode, to avoid any interference from extensions, virus killers, etc.
+	3. Type an url which goes to a far away server, using HTTP (not HTTPS!). For example, here are some urls for testing purpose:
+		http://www.baidu.com
+		http://web.lums.edu.pk/~zartash/
+		http://www.qq.com
+	4. Then you will see injector reports that it injects packet(s), and browser should display the spoof web page
+
+Quantum detector:
+	For this program, it's much easier to do this in python, so I switched to python. I used scapy library to sniff packet. The idea is simple:
+	First, I created a fifo to store the most recent 10 packets.
+	Second, when a new packet arrives, and if it's TCP packet, and the fifo is not empty, go through following criteria:
+		1. The source ip, port, destination ip, port, seq, ack are all the same between the new packet and a packet in the fifo;
+		2. The tcp payload lengthes of both packets are not zero. This is because, if a previous tcp packet serving as a ack packet, and has no payload, all the fields mentioned above could still be the same, while this is not MotS attack;
+		3. The TCP header checksums of two packets are different.
+	If all three conditions are met, detector will report one case of MotS attack detected, and print out two packets in detail.
+	At last, put the new packet into fifo.
+	
+	This program conforms to the argument format from the requirement.
+	
+	An example of using it:
+	Just start the detector before starting the injector, using this command:
+		$ sudo python quantumdetect.py
+	I didn't specify the interface, so scapy will monitor all interfaces by default.
+	You will see that detector reports the instances of injector actions.
+	
+The capture.pcap in my folder contains a trace of one successful attack. The 5th frame is my spoof packet, and the 9th frame is the real reply.
+
+This homework is very interesting, but it also takes a lot more time.
