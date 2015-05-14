@@ -39,6 +39,10 @@ Quantum detector:
 	I didn't specify the interface, so scapy will monitor all interfaces by default.
 	You will see that detector reports the instances of injector actions.
 	
+	Another example:
+	Using this command to detect attacks in recorded trace:
+		$python quantumdetect.py -r capture.pcap
+	
 The capture.pcap in my folder contains a trace of one successful attack. The 5th frame is my spoof packet, and the 9th frame is the real reply.
 
 This homework is very interesting, but it also takes a lot more time.

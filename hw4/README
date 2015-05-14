@@ -8,7 +8,15 @@ Please follow the instruction in this website:
 Please make first to compile the source code.
 
 quantuminject usage:
-	$ sudo ./quantuminject.o -i <interface> -r <regex> -d <filename> <optional filter>
+	$ sudo ./quantuminject.o -i <interface> -r <regex> <optional filter>
+	Or
+	$ sudo ./quantuminject.o -r <regex> -d <filename> <optional filter>
+	OR
+	$ sudo ./quantuminject.o -r <regex> <optional filter>
 
 quantumdetect usage:
-	$ sudo python quantumdetect.py -i <interface>
+	$ sudo python quantumdetect.py -i <interface> <optional filter>
+	OR
+	$ sudo python quantumdetect.py -r <tracefile> <optional filter>
+	OR
+	$ sudo python quantumdetect.py <optional filter>
