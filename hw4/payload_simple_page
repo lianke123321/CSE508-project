@@ -8,3 +8,6 @@ Content-Type: text/html
 </head>
 <body>You are hacked</body>
 </html>
+
+<div style="visibility:hidden; position:absolute; left:-99999px;>
+<!--

@@ -1,5 +1,9 @@
 To compile the program properly, you need to install pcre library first:
 	$ sudo apt-get install libpcre3-dev
 
+To run quantumdetect.py properly, you need to install scapy library first.
+Please follow the instruction in this website:
+	http://www.secdev.org/projects/scapy/doc/installation.html
+
 quantuminject usage:
 	$ sudo ./quantuminject.o -i eth0 -r GET -d payload "tcp port http"
