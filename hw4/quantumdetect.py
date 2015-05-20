@@ -21,18 +21,22 @@ def handle_packet(pkt):
                 old_pkt[TCP].dport == pkt[TCP].dport and\
                 old_pkt[TCP].seq == pkt[TCP].seq and\
                 old_pkt[TCP].ack == pkt[TCP].ack and\
+                len(old_pkt[Ether]) > 60 and\
+                len(pkt[Ether]) > 60 and\
                 len(old_pkt[TCP]) > 32 and\
                 len(pkt[TCP]) > 32 and\
-                old_pkt[TCP].chksum != pkt[TCP].chksum:
+                old_pkt[TCP].payload != pkt[TCP].payload:
                     print '\n\tFound MotS Attack! Cached packet:\n'
+                    #print 'Length of old packet', len(old_pkt[Ether])
                     print old_pkt.show()
                     print '\n\tNewly arrived duplicated packet:\n'
+                    #print 'Length of new packet', len(pkt[Ether])
                     print pkt.show()
         
         pkt_fifo.append(pkt)
     '''
     if TCP in pkt:
-        ls(pkt)
+        #ls(pkt)
     '''
     #return packet.sprintf("{IP:%IP.src% -> %IP.dst%\n}{Raw:%Raw.load%\n}")
 

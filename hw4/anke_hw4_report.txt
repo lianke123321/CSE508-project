@@ -26,8 +26,9 @@ Quantum detector:
 	First, I created a fifo to store the most recent 10 packets.
 	Second, when a new packet arrives, and if it's TCP packet, and the fifo is not empty, go through following criteria:
 		1. The source ip, port, destination ip, port, seq, ack are all the same between the new packet and a packet in the fifo;
-		2. The tcp payload lengthes of both packets are not zero. This is because, if a previous tcp packet serving as a ack packet, and has no payload, all the fields mentioned above could still be the same, while this is not MotS attack;
-		3. The TCP header checksums of two packets are different.
+		2. Check the length of ethernet frame. If it's less than 60 bytes, there could be padding tcp payload
+		3. The tcp payload lengthes of both packets are not zero. This is because, if a previous tcp packet serving as a ack packet, and has no payload, all the fields mentioned above could still be the same, while this is not MotS attack;
+		4. The TCP header checksums of two packets are different.
 	If all three conditions are met, detector will report one case of MotS attack detected, and print out two packets in detail.
 	At last, put the new packet into fifo.
 	
